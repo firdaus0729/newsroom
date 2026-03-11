@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream Player – Test</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1rem;
+      min-height: 100vh;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: var(--muted); }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.6rem;
+      margin-bottom: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .video-wrap video { width: 100%; height: 100%; object-fit: contain; }
+    .video-wrap .placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .btn {
+      padding: 0.6rem 1.2rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { margin-top: 0.75rem; font-size: 0.85rem; color: var(--muted); }
+    .status.live { color: #3fb950; }
+    .status.err { color: #f85149; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stream Player</h1>
+    <p class="sub">Test WebRTC playback (low latency).</p>
+
+    <label for="server">Signalling URL (WebSocket)</label>
+    <input type="text" id="server" placeholder="ws://your-server:3333" value="">
+    <label for="stream">Stream name</label>
+    <input type="text" id="stream" placeholder="reporter_1" value="reporter_1">
+
+    <div class="video-wrap">
+      <video id="video" autoplay playsinline></video>
+      <div id="placeholder" class="placeholder">Enter URL and stream name, then click Play</div>
+    </div>
+
+    <button id="btnPlay" class="btn">Play</button>
+    <button id="btnStop" class="btn" style="display:none; margin-left: 0.5rem;">Stop</button>
+    <p id="status" class="status"></p>
+  </div>
+
+  <script>
+    (function () {
+      const video = document.getElementById('video');
+      const placeholder = document.getElementById('placeholder');
+      const btnPlay = document.getElementById('btnPlay');
+      const btnStop = document.getElementById('btnStop');
+      const statusEl = document.getElementById('status');
+      const serverInput = document.getElementById('server');
+      const streamInput = document.getElementById('stream');
+
+      if (!serverInput.value) {
+        const host = location.hostname || 'localhost';
+        serverInput.value = (location.protocol === 'https:' ? 'wss://' : 'ws://') + host + ':3333';
+      }
+
+      let pc = null;
+      let ws = null;
+
+      function setStatus(msg, cls) {
+        statusEl.textContent = msg;
+        statusEl.className = 'status ' + (cls || '');
+      }
+
+      function stop() {
+        if (ws) { ws.close(); ws = null; }
+        if (pc) { pc.close(); pc = null; }
+        video.srcObject = null;
+        placeholder.style.display = 'flex';
+        btnPlay.style.display = 'inline-block';
+        btnStop.style.display = 'none';
+        setStatus('Stopped.');
+      }
+
+      async function play() {
+        const server = serverInput.value.trim();
+        const streamName = streamInput.value.trim();
+        if (!server || !streamName) {
+          setStatus('Enter server URL and stream name.', 'err');
+          return;
+        }
+        const app = 'live';
+        let wsUrl = server.replace(/^http/, 'ws');
+        if (!wsUrl.includes('://')) wsUrl = 'ws://' + wsUrl;
+        wsUrl = wsUrl.replace(/\/+$/, '') + '/' + app + '/' + encodeURIComponent(streamName);
+
+        setStatus('Connecting…');
+        btnPlay.disabled = true;
+        placeholder.style.display = 'none';
+
+        try {
+          pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+          });
+
+          pc.ontrack = (e) => {
+            if (video.srcObject !== e.streams[0]) {
+              video.srcObject = e.streams[0];
+              placeholder.style.display = 'none';
+            }
+          };
+
+          ws = new WebSocket(wsUrl);
+
+          ws.onopen = () => {
+            setStatus('Requesting offer…');
+            ws.send(JSON.stringify({ command: 'request_offer', id: 0 }));
+          };
+
+          ws.onmessage = async (ev) => {
+            const msg = JSON.parse(ev.data);
+            if (msg.command === 'offer') {
+              if (msg.ice_servers) {
+                pc.setConfiguration({ iceServers: msg.ice_servers });
+              }
+              const sdp = typeof msg.sdp === 'string' ? msg.sdp : (msg.sdp && msg.sdp.sdp);
+              if (!sdp) { setStatus('Invalid offer', 'err'); return; }
+              await pc.setRemoteDescription({ type: 'offer', sdp: sdp });
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              ws.send(JSON.stringify({ command: 'answer', sdp: answer, id: msg.id || 0 }));
+              if (msg.candidates) {
+                for (const c of msg.candidates) {
+                  try { await pc.addIceCandidate(c); } catch (_) {}
+                }
+              }
+              setStatus('Playing (WebRTC, low latency)', 'live');
+            } else if (msg.command === 'candidate') {
+              if (msg.candidate) {
+                try { await pc.addIceCandidate(msg.candidate); } catch (_) {}
+              }
+            } else if (msg.code && msg.code !== 200) {
+              setStatus('Error: ' + (msg.message || msg.code), 'err');
+              stop();
+            }
+          };
+
+          pc.onicecandidate = (e) => {
+            if (e.candidate && ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
+            }
+          };
+
+          ws.onerror = () => setStatus('WebSocket error', 'err');
+          ws.onclose = () => { if (pc) setStatus('Connection closed', 'err'); };
+          btnPlay.style.display = 'none';
+          btnStop.style.display = 'inline-block';
+          btnPlay.disabled = false;
+        } catch (e) {
+          setStatus('Error: ' + e.message, 'err');
+          btnPlay.disabled = false;
+          placeholder.style.display = 'flex';
+          stop();
+        }
+      }
+
+      btnPlay.addEventListener('click', play);
+      btnStop.addEventListener('click', stop);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporter Live – Go Live</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --danger: #f85149;
+      --success: #3fb950;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1rem;
+      min-height: 100vh;
+    }
+    .container { max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: var(--muted); }
+    select, input[type="text"] {
+      width: 100%;
+      padding: 0.6rem;
+      margin-bottom: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .preview {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      object-fit: cover;
+    }
+    .preview.mirror { transform: scaleX(-1); }
+    .btn {
+      width: 100%;
+      padding: 0.9rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-go {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-go:hover:not(:disabled) { background: #da3633; }
+    .btn-stop {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-stop:hover:not(:disabled) { background: #2ea043; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .status {
+      margin-top: 1rem;
+      padding: 0.6rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: var(--surface);
+    }
+    .status.error { color: var(--danger); }
+    .status.live { color: var(--success); }
+    .config { margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Reporter Live</h1>
+    <p class="sub">Stream from your phone or browser to the newsroom.</p>
+
+    <div class="config">
+      <label for="server">Server URL</label>
+      <input type="text" id="server" placeholder="ws://your-server:3333" value="">
+      <label for="stream">Stream name</label>
+      <input type="text" id="stream" placeholder="reporter_1" value="reporter_1">
+      <label for="camera">Camera</label>
+      <select id="camera"></select>
+      <label for="mic">Microphone</label>
+      <select id="mic"></select>
+    </div>
+
+    <video id="preview" class="preview" autoplay muted playsinline></video>
+
+    <button id="btnGo" class="btn btn-go">GO LIVE</button>
+    <button id="btnStop" class="btn btn-stop" style="display:none;">STOP STREAM</button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    (function () {
+      const preview = document.getElementById('preview');
+      const btnGo = document.getElementById('btnGo');
+      const btnStop = document.getElementById('btnStop');
+      const statusEl = document.getElementById('status');
+      const serverInput = document.getElementById('server');
+      const streamInput = document.getElementById('stream');
+      const cameraSelect = document.getElementById('camera');
+      const micSelect = document.getElementById('mic');
+
+      if (!serverInput.value) {
+        const host = location.hostname || 'localhost';
+        serverInput.value = (location.protocol === 'https:' ? 'wss://' : 'ws://') + host + ':3333';
+      }
+
+      let stream = null;
+      let pc = null;
+      let ws = null;
+
+      function setStatus(msg, type = '') {
+        statusEl.textContent = msg;
+        statusEl.className = 'status ' + type;
+      }
+
+      async function loadDevices() {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videos = devices.filter(d => d.kind === 'videoinput');
+          const audios = devices.filter(d => d.kind === 'audioinput');
+          cameraSelect.innerHTML = videos.map(d => `<option value="${d.deviceId}">${d.label || 'Camera ' + (videos.indexOf(d) + 1)}</option>`).join('');
+          micSelect.innerHTML = audios.map(d => `<option value="${d.deviceId}">${d.label || 'Microphone ' + (audios.indexOf(d) + 1)}</option>`).join('');
+        } catch (e) {
+          setStatus('Could not list devices: ' + e.message, 'error');
+        }
+      }
+      loadDevices();
+
+      async function startPreview() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: { deviceId: micSelect.value ? { exact: micSelect.value } : undefined }
+          });
+          preview.srcObject = stream;
+          preview.classList.add('mirror');
+          setStatus('Preview ready. Click GO LIVE to stream.');
+        } catch (e) {
+          setStatus('Camera/mic access failed: ' + e.message, 'error');
+        }
+      }
+
+      function stopPreview() {
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+          stream = null;
+        }
+        preview.srcObject = null;
+      }
+
+      function closeConnection() {
+        if (ws) { ws.close(); ws = null; }
+        if (pc) { pc.close(); pc = null; }
+      }
+
+      async function goLive() {
+        const server = serverInput.value.trim();
+        const streamName = streamInput.value.trim();
+        if (!server || !streamName) {
+          setStatus('Enter server URL and stream name.', 'error');
+          return;
+        }
+        const app = 'live';
+        let wsUrl = server.replace(/^http/, 'ws');
+        if (!wsUrl.includes('://')) wsUrl = 'ws://' + wsUrl;
+        wsUrl = wsUrl.replace(/\/+$/, '') + '/' + app + '/' + encodeURIComponent(streamName) + '?direction=send';
+
+        setStatus('Connecting…');
+        btnGo.disabled = true;
+
+        try {
+          if (!stream) {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } },
+              audio: { deviceId: micSelect.value ? { exact: micSelect.value } : undefined }
+            });
+            preview.srcObject = stream;
+            preview.classList.add('mirror');
+          }
+
+          ws = new WebSocket(wsUrl);
+          pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+          });
+
+          pc.onicecandidate = (e) => {
+            if (e.candidate && ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
+            }
+          };
+
+          stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+          ws.onopen = async () => {
+            setStatus('Signaling connected, sending offer…');
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({ command: 'offer', sdp: offer, id: 0 }));
+          };
+
+          ws.onmessage = async (ev) => {
+            const msg = JSON.parse(ev.data);
+            if (msg.command === 'answer') {
+              if (msg.ice_servers) {
+                pc.setConfiguration({ iceServers: msg.ice_servers });
+              }
+              const sdp = typeof msg.sdp === 'string' ? msg.sdp : (msg.sdp && msg.sdp.sdp);
+              if (sdp) await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
+              if (msg.candidates) {
+                for (const c of msg.candidates) {
+                  try { await pc.addIceCandidate(c); } catch (_) {}
+                }
+              }
+              setStatus('LIVE – &lt;2s latency to studio', 'live');
+              btnGo.style.display = 'none';
+              btnStop.style.display = 'block';
+            } else if (msg.command === 'candidate') {
+              if (msg.candidate) try { await pc.addIceCandidate(msg.candidate); } catch (_) {}
+            } else if (msg.code && msg.code !== 200) {
+              setStatus('Server error: ' + (msg.message || msg.code), 'error');
+              stopStream();
+            }
+          };
+
+          ws.onerror = () => setStatus('WebSocket error.', 'error');
+          ws.onclose = () => {
+            if (document.getElementById('btnStop').style.display !== 'none') setStatus('Connection closed.', 'error');
+          };
+        } catch (e) {
+          setStatus('Error: ' + e.message, 'error');
+          btnGo.disabled = false;
+          closeConnection();
+        }
+      }
+
+      function stopStream() {
+        closeConnection();
+        stopPreview();
+        btnGo.style.display = 'block';
+        btnGo.disabled = false;
+        btnStop.style.display = 'none';
+        setStatus('Stream stopped.');
+      }
+
+      btnGo.addEventListener('click', goLive);
+      btnStop.addEventListener('click', stopStream);
+
+      startPreview();
+    })();
+  </script>
+</body>
+</html>

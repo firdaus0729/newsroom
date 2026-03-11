@@ -1,0 +1,97 @@
+# Low-latency newsroom streaming: OvenMediaEngine + Coturn (STUN/TURN) + nginx-rtmp
+# Target: 20 concurrent WebRTC publishers, <2s latency, optional recording & monitoring
+
+services:
+  coturn:
+    image: coturn/coturn:4.6.3
+    container_name: coturn
+    restart: unless-stopped
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    # Set TURN_EXTERNAL_IP to your server's public IP in production (reporters use turn:IP:3478)
+    entrypoint: ["sh", "-c"]
+    command:
+      - 'if [ -n "$$TURN_EXTERNAL_IP" ]; then exec turnserver -c /etc/coturn/turnserver.conf --external-ip=$$TURN_EXTERNAL_IP/0.0.0.0; else exec turnserver -c /etc/coturn/turnserver.conf; fi'
+    environment:
+      TURN_EXTERNAL_IP: "${TURN_EXTERNAL_IP:-}"
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49152-49251:49152-49251/udp"
+    networks:
+      - streamnet
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+
+  ovenmediaengine:
+    image: airensoft/ovenmediaengine:v0.20.0
+    container_name: ome
+    restart: unless-stopped
+    environment:
+      OME_HOST_IP: "${OME_HOST_IP:-*}"
+    volumes:
+      - ./ome/conf:/opt/ovenmediaengine/bin/origin_conf
+      - ./ome/logs:/var/log/ovenmediaengine
+      - ome_records:/var/lib/ovenmediaengine/records
+    ports:
+      - "3333:3333"      # WebRTC signalling (HTTP)
+      - "3334:3334"      # WebRTC signalling (HTTPS)
+      - "3479:3479"      # OME embedded TURN (Coturn uses 3478)
+      - "9999:9999"      # OME REST API (stats, recording)
+      - "10000-10019:10000-10019/udp"  # WebRTC ICE (20 publishers)
+    networks:
+      - streamnet
+    depends_on:
+      - coturn
+    deploy:
+      resources:
+        limits:
+          cpus: "3.5"
+          memory: 28G
+        reservations:
+          cpus: "4"
+          memory: 4G
+
+  rtmp:
+    image: tiangolo/nginx-rtmp
+    container_name: rtmp
+    restart: unless-stopped
+    volumes:
+      - ./rtmp/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "1935:1935"
+      - "8080:80"
+    networks:
+      - streamnet
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+
+  # web service removed: use npm-run frontend/dashboard or your own nginx for production.
+  # Optional: Nginx reverse proxy (uncomment to use). Terminates TLS and routes to web + OME.
+  # nginx-proxy:
+  #   image: nginx:alpine
+  #   container_name: nginx-proxy
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./nginx-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx-proxy/certs:/etc/nginx/certs:ro
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   networks:
+  #     - streamnet
+  #   depends_on:
+  #     - ovenmediaengine
+
+networks:
+  streamnet:
+    driver: bridge
+
+volumes:
+  ome_records:

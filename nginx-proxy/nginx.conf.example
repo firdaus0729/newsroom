@@ -1,0 +1,57 @@
+# Optional Nginx reverse proxy: TLS termination and routing to web + OME
+# Copy to nginx.conf and place certs in ./certs/
+# Uncomment nginx-proxy service in docker-compose.yml
+
+events { worker_connections 1024; }
+http {
+    upstream web {
+        server web:80;
+    }
+    upstream ome_signalling {
+        server ovenmediaengine:3333;
+    }
+    upstream ome_api {
+        server ovenmediaengine:9999;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name _;
+
+        ssl_certificate     /etc/nginx/certs/fullchain.pem;
+        ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+        # Reporter Portal / static web
+        location / {
+            proxy_pass http://web;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # OME WebRTC signalling (if you want to proxy wss)
+        location /ws/ {
+            proxy_pass http://ome_signalling/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_set_header Host $host;
+        }
+
+        # OME REST API (internal only in production)
+        location /ome-api/ {
+            proxy_pass http://ome_api/;
+            proxy_set_header Host $host;
+            auth_basic "OME API";
+            auth_basic_user_file /etc/nginx/certs/.htpasswd;
+        }
+    }
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PushInfo>
+	<!-- Push RTMP output profile streams to nginx-rtmp for vMix/OBS -->
+	<Push>
+		<Enable>true</Enable>
+		<StreamName>*_rtmp</StreamName>
+		<VariantNames>video_h264,audio_aac</VariantNames>
+		<Protocol>rtmp</Protocol>
+		<Url>rtmp://rtmp:1935/live/${SourceStream}</Url>
+	</Push>
+</PushInfo>

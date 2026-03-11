@@ -1,0 +1,25 @@
+.reporters-page h1 { margin: 0 0 1rem; font-size: 1.25rem; }
+.reporters-grid { display: grid; grid-template-columns: 1fr 340px; grid-template-rows: auto 1fr; gap: 1rem; }
+.reporters-list-panel { grid-column: 1; grid-row: 1 / -1; min-width: 0; }
+.preview-panel { grid-column: 2; grid-row: 1; }
+.activity-panel { grid-column: 2; grid-row: 2; }
+.reporters-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.reporters-table th, .reporters-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+.reporters-table th { color: var(--muted); font-weight: 600; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.35rem; }
+.status-live { background: var(--success); }
+.status-offline { background: var(--muted); }
+.btn-sm { padding: 0.35rem 0.6rem; font-size: 0.8rem; margin-right: 0.35rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; }
+.btn-sm:hover { background: var(--border); }
+.preview-panel h3, .activity-panel h3 { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--muted); }
+.preview-wrap { position: relative; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; }
+.preview-video { width: 100%; height: 100%; object-fit: contain; }
+.preview-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.9rem; background: var(--surface2); }
+.preview-error { color: var(--danger); }
+.btn-close-preview { position: absolute; bottom: 0.5rem; right: 0.5rem; }
+.activity-list { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.activity-list li { padding: 0.35rem 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.1rem; }
+.activity-time { color: var(--muted); font-size: 0.75rem; }
+.page-loading, .page-error { padding: 2rem; text-align: center; color: var(--muted); }
+.page-error { color: var(--danger); }
+.muted { color: var(--muted); font-size: 0.9rem; }

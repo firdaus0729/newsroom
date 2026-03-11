@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Logger>
+	<Level>info</Level>
+	<Path>/var/log/ovenmediaengine/ovenmediaengine.log</Path>
+</Logger>

@@ -88,11 +88,6 @@ export function useWebRTCPublisher() {
   const startPreview = useCallback(
     async (videoDeviceId, audioDeviceId) => {
       stopPreview();
-      if (typeof navigator === 'undefined' || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-        setStatus('error');
-        setErrorMessage('Camera/mic requires HTTPS or localhost');
-        return null;
-      }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -129,11 +124,6 @@ export function useWebRTCPublisher() {
 
       let stream = mediaStreamRef.current;
       if (!stream) {
-        if (typeof navigator === 'undefined' || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-          setStatus('error');
-          setErrorMessage('Camera/mic requires HTTPS or localhost');
-          return;
-        }
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
@@ -300,7 +290,10 @@ export function useWebRTCPublisher() {
   }, []);
 
   const switchCamera = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      // Camera switching not available without MediaDevices (e.g. non-HTTPS origin)
+      return;
+    }
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter((d) => d.kind === 'videoinput');
     if (videoDevices.length < 2) return;
@@ -310,7 +303,6 @@ export function useWebRTCPublisher() {
     const nextDevice = videoDevices[nextIndex];
     const pc = pcRef.current;
     const wasLive = status === 'live';
-    if (typeof navigator.mediaDevices.getUserMedia !== 'function') return;
     try {
       const videoOnly = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: nextDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },

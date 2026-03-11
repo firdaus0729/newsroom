@@ -59,10 +59,21 @@ export default function Dashboard() {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState({ type: '', text: '' });
+
   useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then((d) => {
-      setVideoDevicesCount(d.filter((x) => x.kind === 'videoinput').length);
-    });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      // MediaDevices is only available on secure origins (https or localhost)
+      setVideoDevicesCount(0);
+      return;
+    }
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then((d) => {
+        setVideoDevicesCount(d.filter((x) => x.kind === 'videoinput').length);
+      })
+      .catch(() => {
+        setVideoDevicesCount(0);
+      });
   }, []);
 
   useEffect(() => {
@@ -72,6 +83,10 @@ export default function Dashboard() {
   }, [previewStream]);
 
   useEffect(() => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      // getUserMedia is blocked on insecure origins; avoid crashing
+      return;
+    }
     startPreview().catch(() => {});
   }, [startPreview]);
 

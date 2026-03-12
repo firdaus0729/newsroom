@@ -188,7 +188,24 @@ For production and for `getUserMedia` on non-localhost:
 
 1. Put TLS certificates in `ome/conf/` (e.g. `cert.pem`, `key.pem`) and point OME’s TLS in `Server.xml` to them if you use TLS for OME.
 2. Put the same (or another) certificate on the web server and configure HTTPS in `web/nginx.conf` (and in `docker-compose` if needed).
-3. Use **Server URL** `wss://YOUR_DOMAIN:3334` in the publisher if OME TLS is on 3334; otherwise keep `ws://` for internal/testing.
+3. With the `/ome-ws/` proxy in place, you do **not** need to open port 3333 to the internet for the web app.
+
+**Nginx snippet** (add inside your HTTPS server block; see `nginx-ome-ws.conf` in the project):
+
+```nginx
+location /ome-ws/ {
+    proxy_pass http://127.0.0.1:3333/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 86400;
+    proxy_send_timeout 86400;
+}
+```
 
 ---
 
@@ -196,6 +213,7 @@ For production and for `getUserMedia` on non-localhost:
 
 | Path | Purpose |
 |------|--------|
+| `nginx-ome-ws.conf` | Nginx location to proxy `/ome-ws/` to OME (port 3333) for WSS in production |
 | `docker-compose.yml` | OME, nginx-rtmp, web server |
 | `ome/conf/Server.xml` | OvenMediaEngine: WebRTC bind, app “live”, output profiles, push |
 | `ome/conf/StreamMap.xml` | Push rule: `*_rtmp` → `rtmp://rtmp:1935/live/${SourceStream}` |
@@ -209,6 +227,6 @@ For production and for `getUserMedia` on non-localhost:
 
 ## 9. Troubleshooting
 
-- **Publisher “Connecting…” then fails**: Check that port 3333 (and 3478, 10000–10019 UDP) is open and `OME_HOST_IP` is set to the server’s public IP. Check browser console and `ome/logs/ovenmediaengine.log`.
+- **Publisher “Connecting…” then fails**: If using HTTPS, add the `/ome-ws/` Nginx proxy (section 7). Otherwise check that port 3333 (and 3478, 10000–10019 UDP) is open and `OME_HOST_IP` is set to the server’s public IP. Check browser console and `ome/logs/ovenmediaengine.log`.
 - **No picture in vMix/OBS**: Confirm the reporter is LIVE and the stream name matches (e.g. `reporter_1`). Use `http://YOUR_SERVER_IP:8080/stat` (if nginx-rtmp stat is enabled) to see active streams.
 - **High CPU**: Reduce resolution/bitrate in `Server.xml` RTMP output profile or lower the number of concurrent streams until you scale hardware.

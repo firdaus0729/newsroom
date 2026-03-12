@@ -3,7 +3,14 @@ import * as api from '../api';
 import { useWebRTCPlayer } from '../hooks/useWebRTCPlayer';
 import './Reporters.css';
 
-const OME_WS = import.meta.env.VITE_OME_WS_URL || (typeof window !== 'undefined' ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:3333` : 'ws://localhost:3333');
+function getOmeWsUrl() {
+  if (import.meta.env.VITE_OME_WS_URL) return import.meta.env.VITE_OME_WS_URL;
+  if (typeof window === 'undefined') return 'ws://localhost:3333';
+  const { protocol, hostname } = window.location;
+  if (protocol === 'https:') return `${protocol}//${hostname}/ome-ws`;
+  return `ws://${hostname}:3333`;
+}
+const OME_WS = getOmeWsUrl();
 
 function formatDuration(startedAt) {
   if (!startedAt) return '—';

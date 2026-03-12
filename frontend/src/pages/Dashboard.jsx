@@ -11,9 +11,13 @@ const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
 
 function getDefaultOmeUrl() {
   if (OME_WS_URL) return OME_WS_URL;
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${host}:3333`;
+  if (typeof window === 'undefined') return 'ws://localhost:3333';
+  const { protocol, hostname } = window.location;
+  // When on HTTPS, use same-origin path /ome-ws so Nginx can proxy to OME (no port 3333 exposed)
+  if (protocol === 'https:') {
+    return `${protocol}//${hostname}/ome-ws`;
+  }
+  return `ws://${hostname}:3333`;
 }
 
 function formatDuration(seconds) {

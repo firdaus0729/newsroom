@@ -152,8 +152,6 @@ export function useWebRTCPublisher() {
       const ws = new WebSocket(wsUrl);
       pcRef.current = pc;
       wsRef.current = ws;
-      // Use a unique positive integer ID per session (OME expects a valid, non-zero ID)
-      sessionIdRef.current = Date.now();
 
       const safeSetStatus = (s, msg = '') => {
         setStatus(s);

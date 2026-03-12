@@ -3,7 +3,7 @@
 	<Name>OvenMediaEngine</Name>
 	<IP>*</IP>
 	<PrivacyProtection>false</PrivacyProtection>
-	<!-- STUN: use Coturn for NAT traversal (same host as TURN for reporters) -->
+	<!-- STUN: use Coturn for NAT traversal (same host as TURN for reporters) ->
 	<StunServer>coturn:3478</StunServer>
 	<!-- REST API: monitoring (stats) and recording control. Auth: Basic access_token -->
 	<Managers>

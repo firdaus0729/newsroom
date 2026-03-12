@@ -52,12 +52,6 @@
 				<Port>80</Port>
 				<TLSPort>443</TLSPort>
 			</HLS>
-			<!-- Optional stream recording (start/stop via REST API) -->
-			<FILE>
-				<RootPath>/var/lib/ovenmediaengine/records</RootPath>
-				<FilePath>/${VirtualHost}/${Application}/${Stream}/${StartTime:YYYYMMDDhhmmss}_${EndTime:YYYYMMDDhhmmss}.ts</FilePath>
-				<InfoPath>/${VirtualHost}/${Application}/${Stream}_info.xml</InfoPath>
-			</FILE>
 		</Publishers>
 	</Bind>
 	<VirtualHosts>
@@ -67,10 +61,6 @@
 				<Names>
 					<Name>*</Name>
 				</Names>
-				<TLS>
-					<CertPath>/opt/ovenmediaengine/bin/origin_conf/cert.pem</CertPath>
-					<KeyPath>/opt/ovenmediaengine/bin/origin_conf/key.pem</KeyPath>
-				</TLS>
 			</Host>
 			<Applications>
 				<Application>
@@ -92,6 +82,11 @@
 								<Path>StreamMap.xml</Path>
 							</StreamMap>
 						</Push>
+						<FILE>
+							<RootPath>/var/lib/ovenmediaengine/records</RootPath>
+							<FilePath>/${VirtualHost}/${Application}/${Stream}/${StartTime:YYYYMMDDhhmmss}_${EndTime:YYYYMMDDhhmmss}.ts</FilePath>
+							<InfoPath>/${VirtualHost}/${Application}/${Stream}_info.xml</InfoPath>
+						</FILE>
 					</Publishers>
 					<OutputProfiles>
 						<!-- Decoder: 8 threads for 20 concurrent streams -->
@@ -112,9 +107,6 @@
 									<Bitrate>128000</Bitrate>
 									<Samplerate>48000</Samplerate>
 									<Channel>2</Channel>
-									<BypassIfMatch>
-										<Codec>eq</Codec>
-									</BypassIfMatch>
 								</Audio>
 							</Encodes>
 						</OutputProfile>

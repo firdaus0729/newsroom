@@ -31,7 +31,8 @@
     }
     document.getElementById('btn').onclick = function () {
       logEl.innerHTML = '';
-      const url = 'wss://' + host + '/ome-ws/live/reporter_1?direction=send';
+      // Default OME app name from Server.xml is \"app\"
+      const url = 'wss://' + host + '/ome-ws/app/reporter_1?direction=send';
       log('Connecting to: ' + url);
       const ws = new WebSocket(url);
       ws.onopen = function () {

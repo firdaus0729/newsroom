@@ -42,6 +42,7 @@ export function useWebRTCPublisher() {
   const currentFacingRef = useRef('environment');
   const pcRef = useRef(null);
   const wsRef = useRef(null);
+  const sessionIdRef = useRef('');
   const liveStartedAtRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
@@ -152,6 +153,8 @@ export function useWebRTCPublisher() {
       const ws = new WebSocket(wsUrl);
       pcRef.current = pc;
       wsRef.current = ws;
+      // Use a unique string ID per session (OME expects a non-zero, non-empty ID)
+      sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const safeSetStatus = (s, msg = '') => {
         setStatus(s);
@@ -160,7 +163,7 @@ export function useWebRTCPublisher() {
 
       pc.onicecandidate = (e) => {
         if (e.candidate && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
+          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: sessionIdRef.current }));
         }
       };
 
@@ -203,7 +206,7 @@ export function useWebRTCPublisher() {
         try {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          ws.send(JSON.stringify({ command: 'offer', sdp: offer, id: 0 }));
+          ws.send(JSON.stringify({ command: 'offer', sdp: offer, id: sessionIdRef.current }));
         } catch (err) {
           safeSetStatus('error', err.message || 'Offer failed');
           closeConnection();

@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { getIceServers } from '../config/iceServers';
 
-const APP = 'live';
+// OME default application name is 'app' in the stock Server.xml
+const APP = 'app';
 
 function buildWsUrl(serverUrl, streamName) {
   let base = (serverUrl || '').trim().replace(/^http/, 'ws');

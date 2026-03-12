@@ -33,7 +33,7 @@ services:
     environment:
       OME_HOST_IP: "${OME_HOST_IP:-*}"
     volumes:
-      - ./ome/conf:/opt/ovenmediaengine/bin/origin_conf
+      - ./ome/origin_conf:/opt/ovenmediaengine/bin/origin_conf
       - ./ome/logs:/var/log/ovenmediaengine
       - ome_records:/var/lib/ovenmediaengine/records
     ports:

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OME WebSocket test</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    pre { background: #1a1a1a; color: #eee; padding: 1rem; overflow-x: auto; }
+    .ok { color: green; }
+    .err { color: red; }
+    button { padding: 0.5rem 1rem; margin-top: 0.5rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>OME WebSocket test</h1>
+  <p>This page tests whether <code>wss://<span id="host"></span>/ome-ws/...</code> is reachable.</p>
+  <button type="button" id="btn">Connect</button>
+  <pre id="log"></pre>
+
+  <script>
+    const host = window.location.host;
+    document.getElementById('host').textContent = host;
+    const logEl = document.getElementById('log');
+    function log(msg, isError) {
+      const line = document.createElement('div');
+      line.className = isError ? 'err' : 'ok';
+      line.textContent = new Date().toISOString().slice(11, 23) + ' ' + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    document.getElementById('btn').onclick = function () {
+      logEl.innerHTML = '';
+      const url = 'wss://' + host + '/ome-ws/live/reporter_1?direction=send';
+      log('Connecting to: ' + url);
+      const ws = new WebSocket(url);
+      ws.onopen = function () {
+        log('OPEN – WebSocket proxy and OME are working.');
+        ws.close();
+      };
+      ws.onerror = function () {
+        log('ERROR – Connection failed (see onclose for code).', true);
+      };
+      ws.onclose = function (ev) {
+        log('CLOSED – code: ' + ev.code + ', reason: ' + (ev.reason || '(none)'), ev.code !== 1000);
+        if (ev.code === 1006) log('Code 1006 = abnormal closure (connection refused or proxy/OME not running).', true);
+      };
+    };
+  </script>
+</body>
+</html>

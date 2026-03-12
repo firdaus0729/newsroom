@@ -38,6 +38,7 @@ export function useWebRTCPublisher() {
   const [isMuted, setIsMuted] = useState(false);
 
   const mediaStreamRef = useRef(null);
+  const currentFacingRef = useRef('environment');
   const pcRef = useRef(null);
   const wsRef = useRef(null);
   const liveStartedAtRef = useRef(null);
@@ -92,6 +93,7 @@ export function useWebRTCPublisher() {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
+            facingMode: currentFacingRef.current,
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
@@ -128,6 +130,7 @@ export function useWebRTCPublisher() {
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
               deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
+              facingMode: currentFacingRef.current,
               width: { ideal: 1280 },
               height: { ideal: 720 },
             },
@@ -290,23 +293,22 @@ export function useWebRTCPublisher() {
   }, []);
 
   const switchCamera = useCallback(async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-      // Camera switching not available without MediaDevices (e.g. non-HTTPS origin)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return;
     }
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter((d) => d.kind === 'videoinput');
-    if (videoDevices.length < 2) return;
-    const currentId = mediaStreamRef.current?.getVideoTracks()[0]?.getSettings()?.deviceId;
-    const currentIndex = videoDevices.findIndex((d) => d.deviceId === currentId);
-    const nextIndex = (currentIndex + 1) % videoDevices.length;
-    const nextDevice = videoDevices[nextIndex];
+    const nextFacing = currentFacingRef.current === 'user' ? 'environment' : 'user';
     const pc = pcRef.current;
     const wasLive = status === 'live';
     try {
       const videoOnly = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: nextDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: nextFacing,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: true,
       });
+      currentFacingRef.current = nextFacing;
       const oldStream = mediaStreamRef.current;
       const oldVideo = oldStream?.getVideoTracks()[0];
       if (oldVideo) oldVideo.stop();

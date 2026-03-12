@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
@@ -29,6 +29,8 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <div>
+      <img src="/logo.png" alt="" className="login-logo" />
       <div className="login-card">
         <h1>Reporter Portal</h1>
         <p className="login-sub">Sign in to go live</p>
@@ -58,9 +60,7 @@ export default function Login() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-        <p className="login-footer">
-          Don&apos;t have an account? <Link to="/signup">Sign up</Link>
-        </p>
+      </div>
       </div>
     </div>
   );

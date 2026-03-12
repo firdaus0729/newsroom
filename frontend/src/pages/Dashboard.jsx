@@ -205,7 +205,7 @@ export default function Dashboard() {
               </div>
             )}
             <div className="preview-actions">
-              {videoDevicesCount > 1 && (
+              {videoDevicesCount > 0 && (
                 <button
                   type="button"
                   className="btn-icon"

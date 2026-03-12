@@ -42,7 +42,8 @@ export function useWebRTCPublisher() {
   const currentFacingRef = useRef('environment');
   const pcRef = useRef(null);
   const wsRef = useRef(null);
-  const sessionIdRef = useRef('');
+  // Numeric session ID used by OME signalling (must be > 0)
+  const sessionIdRef = useRef(0);
   const liveStartedAtRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
@@ -153,8 +154,8 @@ export function useWebRTCPublisher() {
       const ws = new WebSocket(wsUrl);
       pcRef.current = pc;
       wsRef.current = ws;
-      // Use a unique string ID per session (OME expects a non-zero, non-empty ID)
-      sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      // Use a unique positive integer ID per session (OME expects a valid, non-zero ID)
+      sessionIdRef.current = Date.now();
 
       const safeSetStatus = (s, msg = '') => {
         setStatus(s);

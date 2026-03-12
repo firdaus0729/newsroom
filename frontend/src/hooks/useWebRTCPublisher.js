@@ -42,8 +42,6 @@ export function useWebRTCPublisher() {
   const currentFacingRef = useRef('environment');
   const pcRef = useRef(null);
   const wsRef = useRef(null);
-  // Numeric session ID used by OME signalling (must be > 0)
-  const sessionIdRef = useRef(0);
   const liveStartedAtRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
@@ -164,7 +162,8 @@ export function useWebRTCPublisher() {
 
       pc.onicecandidate = (e) => {
         if (e.candidate && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: sessionIdRef.current }));
+          // Match OME's signalling used for WebRTC playback: id 0 is acceptable
+          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
         }
       };
 
@@ -202,27 +201,29 @@ export function useWebRTCPublisher() {
 
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      ws.onopen = async () => {
-        safeSetStatus('connecting', 'Signaling connected, sending offer…');
-        try {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          ws.send(JSON.stringify({ command: 'offer', sdp: offer, id: sessionIdRef.current }));
-        } catch (err) {
-          safeSetStatus('error', err.message || 'Offer failed');
-          closeConnection();
-        }
+      ws.onopen = () => {
+        safeSetStatus('connecting', 'Requesting offer…');
+        // Follow the same signalling pattern as the WebRTC player:
+        // ask OME for an offer, then respond with an answer.
+        ws.send(JSON.stringify({ command: 'request_offer', id: 0 }));
       };
 
       ws.onmessage = async (ev) => {
         try {
           const msg = JSON.parse(ev.data);
-          if (msg.command === 'answer') {
+          if (msg.command === 'offer') {
             if (msg.ice_servers) {
               pc.setConfiguration({ iceServers: msg.ice_servers });
             }
             const sdp = typeof msg.sdp === 'string' ? msg.sdp : msg.sdp?.sdp;
-            if (sdp) await pc.setRemoteDescription({ type: 'answer', sdp });
+            if (!sdp) {
+              safeSetStatus('error', 'Invalid offer');
+              return;
+            }
+            await pc.setRemoteDescription({ type: 'offer', sdp });
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ command: 'answer', sdp: answer, id: msg.id || 0 }));
             if (msg.candidates) {
               for (const c of msg.candidates) {
                 try {

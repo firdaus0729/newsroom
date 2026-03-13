@@ -153,17 +153,23 @@ export function useWebRTCPublisher() {
       const ws = new WebSocket(wsUrl);
       pcRef.current = pc;
       wsRef.current = ws;
-
+      
+      // OME requires the same id as the offer in answer and all candidate messages
+      let sessionId = 0;
+      // Collect candidates so we can send them in the answer (OME expects "candidate list" in answer)
+      const collectedCandidates = [];
+      let answerSent = false;
       const safeSetStatus = (s, msg = '') => {
         setStatus(s);
         setErrorMessage(msg);
       };
 
       pc.onicecandidate = (e) => {
-        if (e.candidate && ws.readyState === WebSocket.OPEN) {
-          // Match OME's signalling used for WebRTC playback: id 0 is acceptable
-          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
-        }
+       if (!e.candidate) return;
+        collectedCandidates.push(e.candidate);
+       if (answerSent && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: sessionId }));
+       }
       };
 
       const scheduleReconnect = () => {
@@ -209,11 +215,20 @@ export function useWebRTCPublisher() {
 
       ws.onmessage = async (ev) => {
         try {
-console.log('publisher signalling message:', ev.data);
+          console.log('publisher signalling message:', ev.data);
           const msg = JSON.parse(ev.data);
           if (msg.command === 'offer') {
-            if (msg.ice_servers) {
-              pc.setConfiguration({ iceServers: msg.ice_servers });
+            sessionId = msg.id != null ? msg.id : 0;
+            // Prefer iceServers camelCase if present, fallback to ice_servers
+            const fromServerIce = msg.iceServers || msg.ice_servers;
+            if (fromServerIce && Array.isArray(fromServerIce)) {
+              // Map to proper RTCIceServer shape (username vs user_name)
+              const iceServers = fromServerIce.map((s) => ({
+                urls: s.urls,
+                username: s.username || s.user_name,
+                credential: s.credential,
+              }));
+              pc.setConfiguration({ iceServers });
             }
             const sdp = typeof msg.sdp === 'string' ? msg.sdp : msg.sdp?.sdp;
             if (!sdp) {
@@ -223,12 +238,33 @@ console.log('publisher signalling message:', ev.data);
             await pc.setRemoteDescription({ type: 'offer', sdp });
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ command: 'answer', sdp: answer, id: msg.id || 0 }));
+                       // OME expects candidates in the answer; wait for ICE gathering to complete
+            if (pc.iceGatheringState !== 'complete') {
+              await new Promise((resolve) => {
+                const onState = () => {
+                  if (pc.iceGatheringState === 'complete') {
+                    pc.onicegatheringstatechange = null;
+                    resolve();
+                  }
+                };
+                pc.onicegatheringstatechange = onState;
+                setTimeout(resolve, 3000);
+              });
+            }
+            ws.send(JSON.stringify({
+              command: 'answer',
+              sdp: answer,
+              id: sessionId,
+              candidates: collectedCandidates.map((c) => (c.toJSON ? c.toJSON() : { candidate: c.candidate, sdpMLineIndex: c.sdpMLineIndex ?? 0 })),
+            }));
+            answerSent = true;
             if (msg.candidates) {
               for (const c of msg.candidates) {
                 try {
                   await pc.addIceCandidate(c);
-                } catch (_) {}
+                } catch (e) {
+                  console.warn('publisher addIceCandidate error', e);
+                }
               }
             }
             const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
@@ -236,18 +272,23 @@ console.log('publisher signalling message:', ev.data);
             reconnectAttemptRef.current = 0;
             safeSetStatus('live', '');
             liveStartedAtRef.current = Date.now();
-            if (typeof options?.onLive === 'function') options.onLive();
+            if (typeof onLive === 'function') onLive();
           } else if (msg.command === 'candidate') {
             if (msg.candidate) {
               try {
                 await pc.addIceCandidate(msg.candidate);
-              } catch (_) {}
+              } catch (e) {
+                console.warn('publisher addIceCandidate (trickle) error', e);
+              }
             }
           } else if (msg.code && msg.code !== 200) {
             safeSetStatus('error', msg.message || 'Server error ' + msg.code);
             closeConnection();
           }
-        } catch (_) {}
+        } catch (e) {
+          console.error('publisher signalling error', e);
+          safeSetStatus('error', e?.message || 'Signalling error');
+        }
       };
 
       ws.onerror = () => {

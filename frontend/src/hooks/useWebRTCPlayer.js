@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 
-// OME default application name is 'app' in the stock Server.xml
-const APP = 'app';
+// OME application name for WebRTC playback (must match publisher and OME config)
+const APP = 'live';
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 

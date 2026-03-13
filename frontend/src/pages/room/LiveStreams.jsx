@@ -11,13 +11,13 @@ function getOmeWsUrl() {
       base = 'wss://' + base.slice(5);
     }
     if (base.startsWith('http://') || base.startsWith('https://')) {
-      base = base.replace(/^http/, 'ws');
+      base = base.replace(/^https?/, (p) => (p === 'https' ? 'wss' : 'ws'));
     }
     return base;
   }
   if (typeof window === 'undefined') return 'ws://localhost:3333';
   const { protocol, hostname } = window.location;
-  if (protocol === 'https:') return `${protocol}//${hostname}/ome-ws`;
+  if (protocol === 'https:') return `wss://${hostname}/ome-ws`;
   return `ws://${hostname}:3333`;
 }
 const OME_WS = getOmeWsUrl();
@@ -60,10 +60,11 @@ export default function LiveStreams() {
     return () => { cancelled = true; clearInterval(t); };
   }, []);
 
-  function handleViewStream(webrtcUrl, streamName) {
+  function handleViewStream(_webrtcUrl, streamName) {
     stopPreview();
     setPreviewStream(streamName);
-    const base = webrtcUrl?.replace(/\/live\/.*$/, '') || OME_WS.replace(/\/+$/, '');
+    // Use same-origin OME base so View Stream works in production (ignore API's webrtc_url which may be localhost)
+    const base = OME_WS.replace(/\/+$/, '');
     playPreview(base, streamName);
   }
 

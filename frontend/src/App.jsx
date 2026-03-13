@@ -3,6 +3,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import RoomLogin from './pages/room/Login';
+import RoomLayout from './pages/room/Layout';
+import RoomReporters from './pages/room/Reporters';
+import RoomLiveStreams from './pages/room/LiveStreams';
+import RoomUploads from './pages/room/Uploads';
+import RoomEditors from './pages/room/Editors';
+import { getToken as getRoomToken } from './roomApi';
 
 function ProtectedRoute({ children }) {
   const { reporter, loading } = useAuth();
@@ -11,9 +18,15 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+function RoomProtected({ children }) {
+  if (!getRoomToken()) return <Navigate to="/room/login" replace />;
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
+      {/* Reporter portal */}
       <Route path="/login" element={<Login />} />
       <Route
         path="/dashboard"
@@ -24,6 +37,17 @@ export default function App() {
         }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      {/* Newsroom dashboard (editor) */}
+      <Route path="/room/login" element={<RoomLogin />} />
+      <Route path="/room" element={<RoomProtected><RoomLayout /></RoomProtected>}>
+        <Route index element={<Navigate to="reporters" replace />} />
+        <Route path="reporters" element={<RoomReporters />} />
+        <Route path="live" element={<RoomLiveStreams />} />
+        <Route path="uploads" element={<RoomUploads />} />
+        <Route path="editors" element={<RoomEditors />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

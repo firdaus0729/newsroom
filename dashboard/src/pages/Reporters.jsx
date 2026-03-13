@@ -4,7 +4,17 @@ import { useWebRTCPlayer } from '../hooks/useWebRTCPlayer';
 import './Reporters.css';
 
 function getOmeWsUrl() {
-  if (import.meta.env.VITE_OME_WS_URL) return import.meta.env.VITE_OME_WS_URL;
+  const envUrl = import.meta.env.VITE_OME_WS_URL;
+  if (envUrl) {
+    let base = envUrl.trim();
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('ws://')) {
+      base = 'wss://' + base.slice(5);
+    }
+    if (base.startsWith('http://') || base.startsWith('https://')) {
+      base = base.replace(/^http/, 'ws');
+    }
+    return base;
+  }
   if (typeof window === 'undefined') return 'ws://localhost:3333';
   const { protocol, hostname } = window.location;
   if (protocol === 'https:') return `${protocol}//${hostname}/ome-ws`;

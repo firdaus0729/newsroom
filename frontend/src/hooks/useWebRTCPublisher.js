@@ -3,11 +3,11 @@ import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
 // OME default application name is 'app' in the stock Server.xml
+console.log("SDfsd");
 const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
 const STATS_INTERVAL_MS = 2000;
-
 
 function buildWsUrl(serverUrl, streamName) {
   let base = (serverUrl || '').trim();
@@ -153,24 +153,17 @@ export function useWebRTCPublisher() {
       const ws = new WebSocket(wsUrl);
       pcRef.current = pc;
       wsRef.current = ws;
-
       // OME requires the same id as the offer in answer and all candidate messages
       let sessionId = 0;
       // Collect candidates so we can send them in the answer (OME expects "candidate list" in answer)
       const collectedCandidates = [];
       let answerSent = false;
-
       const safeSetStatus = (s, msg = '') => {
         setStatus(s);
         setErrorMessage(msg);
       };
 
       pc.onicecandidate = (e) => {
-        if (!e.candidate) return;
-        collectedCandidates.push(e.candidate);
-        if (answerSent && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: sessionId }));
-        }
       };
 
       const scheduleReconnect = () => {
@@ -215,8 +208,8 @@ export function useWebRTCPublisher() {
       };
 
       ws.onmessage = async (ev) => {
-        console.log('publisher signalling', ev.data);
         try {
+          console.log('publisher signalling message:', ev.data);
           const msg = JSON.parse(ev.data);
           if (msg.command === 'offer') {
             sessionId = msg.id != null ? msg.id : 0;
@@ -239,7 +232,7 @@ export function useWebRTCPublisher() {
             await pc.setRemoteDescription({ type: 'offer', sdp });
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            // OME expects candidates in the answer; wait for ICE gathering to complete
+                       // OME expects candidates in the answer; wait for ICE gathering to complete
             if (pc.iceGatheringState !== 'complete') {
               await new Promise((resolve) => {
                 const onState = () => {
@@ -253,7 +246,7 @@ export function useWebRTCPublisher() {
               });
             }
             ws.send(JSON.stringify({
-              command: 'offer',
+              command: 'answer',
               sdp: answer,
               id: sessionId,
               candidates: collectedCandidates.map((c) => (c.toJSON ? c.toJSON() : { candidate: c.candidate, sdpMLineIndex: c.sdpMLineIndex ?? 0 })),

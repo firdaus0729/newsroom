@@ -2,8 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-// OME default application name is 'app' in the stock Server.xml
-console.log("SDfsd");
+// OME application name for WebRTC publishing
 const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
@@ -164,6 +163,9 @@ export function useWebRTCPublisher() {
       };
 
       pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          collectedCandidates.push(e.candidate);
+        }
       };
 
       const scheduleReconnect = () => {

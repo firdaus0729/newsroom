@@ -254,7 +254,11 @@ export function useWebRTCPublisher() {
             }
             ws.send(JSON.stringify({
 <<<<<<< HEAD
+<<<<<<< HEAD
               command: 'offer',
+=======
+              command: 'answer',
+>>>>>>> parent of e02f0d4 (fff)
 =======
               command: 'answer',
 >>>>>>> parent of e02f0d4 (fff)

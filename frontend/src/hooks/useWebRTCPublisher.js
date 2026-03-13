@@ -2,11 +2,12 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-// OME application name used for WebRTC publishing
-const APP = 'live';
+// OME default application name is 'app' in the stock Server.xml
+const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
 const STATS_INTERVAL_MS = 2000;
+
 
 function buildWsUrl(serverUrl, streamName) {
   let base = (serverUrl || '').trim();
@@ -152,23 +153,24 @@ export function useWebRTCPublisher() {
       const ws = new WebSocket(wsUrl);
       pcRef.current = pc;
       wsRef.current = ws;
-      
+
       // OME requires the same id as the offer in answer and all candidate messages
       let sessionId = 0;
       // Collect candidates so we can send them in the answer (OME expects "candidate list" in answer)
       const collectedCandidates = [];
       let answerSent = false;
+
       const safeSetStatus = (s, msg = '') => {
         setStatus(s);
         setErrorMessage(msg);
       };
 
       pc.onicecandidate = (e) => {
-       if (!e.candidate) return;
+        if (!e.candidate) return;
         collectedCandidates.push(e.candidate);
-       if (answerSent && ws.readyState === WebSocket.OPEN) {
+        if (answerSent && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: sessionId }));
-       }
+        }
       };
 
       const scheduleReconnect = () => {
@@ -205,25 +207,18 @@ export function useWebRTCPublisher() {
 
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      ws.onopen = async () => {
-        try {
-          safeSetStatus('connecting', 'Sending offer…');
-          // For WebRTC publishing, client creates the offer and OME answers.
-          sessionId = 0;
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          ws.send(JSON.stringify({ command: 'offer', sdp: offer, id: sessionId }));
-        } catch (e) {
-          safeSetStatus('error', e?.message || 'Failed to create offer');
-          closeConnection();
-        }
+      ws.onopen = () => {
+        safeSetStatus('connecting', 'Requesting offer…');
+        // Follow the same signalling pattern as the WebRTC player:
+        // ask OME for an offer, then respond with an answer.
+        ws.send(JSON.stringify({ command: 'request_offer', id: 0 }));
       };
 
       ws.onmessage = async (ev) => {
+        console.log('publisher signalling', ev.data);
         try {
-          console.log('publisher signalling message:', ev.data);
           const msg = JSON.parse(ev.data);
-          if (msg.command === 'answer') {
+          if (msg.command === 'offer') {
             sessionId = msg.id != null ? msg.id : 0;
             // Prefer iceServers camelCase if present, fallback to ice_servers
             const fromServerIce = msg.iceServers || msg.ice_servers;
@@ -238,11 +233,32 @@ export function useWebRTCPublisher() {
             }
             const sdp = typeof msg.sdp === 'string' ? msg.sdp : msg.sdp?.sdp;
             if (!sdp) {
-              safeSetStatus('error', 'Invalid answer');
+              safeSetStatus('error', 'Invalid offer');
               return;
             }
-            await pc.setRemoteDescription({ type: 'answer', sdp });
-            // OME may also send initial ICE candidates alongside the answer
+            await pc.setRemoteDescription({ type: 'offer', sdp });
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            // OME expects candidates in the answer; wait for ICE gathering to complete
+            if (pc.iceGatheringState !== 'complete') {
+              await new Promise((resolve) => {
+                const onState = () => {
+                  if (pc.iceGatheringState === 'complete') {
+                    pc.onicegatheringstatechange = null;
+                    resolve();
+                  }
+                };
+                pc.onicegatheringstatechange = onState;
+                setTimeout(resolve, 3000);
+              });
+            }
+            ws.send(JSON.stringify({
+              command: 'answer',
+              sdp: answer,
+              id: sessionId,
+              candidates: collectedCandidates.map((c) => (c.toJSON ? c.toJSON() : { candidate: c.candidate, sdpMLineIndex: c.sdpMLineIndex ?? 0 })),
+            }));
+            answerSent = true;
             if (msg.candidates) {
               for (const c of msg.candidates) {
                 try {
@@ -254,7 +270,6 @@ export function useWebRTCPublisher() {
             }
             const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
             if (sender) applyBitrateToSender(sender, bitrate);
-            answerSent = true;
             reconnectAttemptRef.current = 0;
             safeSetStatus('live', '');
             liveStartedAtRef.current = Date.now();

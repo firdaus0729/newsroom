@@ -164,6 +164,9 @@ export function useWebRTCPublisher() {
       };
 
       pc.onicecandidate = (e) => {
+if (e.candidate) {
+          collectedCandidates.push(e.candidate);
+        }
       };
 
       const scheduleReconnect = () => {

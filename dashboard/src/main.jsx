@@ -16,6 +16,7 @@ if (typeof navigator !== 'undefined' && !navigator.mediaDevices) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter
+      basename="/room"
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true,

@@ -10,7 +10,17 @@ const OME_WS_URL = import.meta.env.VITE_OME_WS_URL || '';
 const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
 
 function getDefaultOmeUrl() {
-  if (OME_WS_URL) return OME_WS_URL;
+  if (OME_WS_URL) {
+    // Normalize env value so HTTPS sites don't try to use insecure ws://
+    let base = OME_WS_URL.trim();
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('ws://')) {
+      base = 'wss://' + base.slice(5);
+    }
+    if (base.startsWith('http://') || base.startsWith('https://')) {
+      base = base.replace(/^http/, 'ws');
+    }
+    return base;
+  }
   if (typeof window === 'undefined') return 'ws://localhost:3333';
   const { protocol, hostname } = window.location;
   // When on HTTPS, use same-origin path /ome-ws so Nginx can proxy to OME (no port 3333 exposed)

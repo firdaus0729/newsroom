@@ -3,8 +3,7 @@ import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
 // OME default application name is 'app' in the stock Server.xml
-console.log('useWebRTCPublisher');
-const APP = 'live';
+const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
 const STATS_INTERVAL_MS = 2000;
@@ -160,12 +159,19 @@ export function useWebRTCPublisher() {
         setErrorMessage(msg);
       };
 
+      let offerSent = false;
+      const pendingCandidates = [];
+
       // Match the proven-good behaviour from web/publisher.html:
       // - client creates the offer
       // - OME returns an answer
       // - candidates are trickled one-by-one with id: 0
       pc.onicecandidate = (e) => {
         if (!e.candidate) return;
+        if (!offerSent) {
+          pendingCandidates.push(e.candidate);
+          return;
+        }
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
         }
@@ -211,6 +217,14 @@ export function useWebRTCPublisher() {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           ws.send(JSON.stringify({ command: 'offer', sdp: offer, id: 0 }));
+          offerSent = true;
+          // flush any candidates gathered before offer was sent
+          for (const c of pendingCandidates) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ command: 'candidate', candidate: c, id: 0 }));
+            }
+          }
+          pendingCandidates.length = 0;
         } catch (e) {
           safeSetStatus('error', e?.message || 'Failed to create offer');
           closeConnection();

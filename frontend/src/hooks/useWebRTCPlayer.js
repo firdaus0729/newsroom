@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 
-// OME application name for WebRTC playback (must match publisher and OME config)
-const APP = 'live';
-const RECONNECT_DELAY_MS = 3000;
+// OME application name (must match useWebRTCPublisher and OME config)
+const APP = 'app';
+const RECONNECT_BASE_MS = 1000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
 function buildWsUrl(serverUrl, streamName) {
@@ -42,7 +42,7 @@ export function useWebRTCPlayer(videoRef, options = {}) {
       wsRef.current = null;
     }
     if (pcRef.current) {
-      pcRef.current.close();
+      try { pcRef.current.close(); } catch (_) {}
       pcRef.current = null;
     }
     if (videoRef?.current) {
@@ -66,7 +66,7 @@ export function useWebRTCPlayer(videoRef, options = {}) {
         wsRef.current = null;
       }
       if (pcRef.current) {
-        pcRef.current.close();
+        try { pcRef.current.close(); } catch (_) {}
         pcRef.current = null;
       }
     };
@@ -102,10 +102,38 @@ export function useWebRTCPlayer(videoRef, options = {}) {
       pcRef.current = pc;
       wsRef.current = ws;
 
+      let sessionId = 0;
+      const collectedCandidates = [];
+
       const safeSetState = (s, m) => {
         if (mountedRef.current) {
           setStatus(s);
           setErrorMessage(m || '');
+        }
+      };
+
+      const scheduleReconnect = () => {
+        if (!playParamsRef.current || !autoReconnect || reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) return;
+        const delay = RECONNECT_BASE_MS * Math.pow(2, reconnectAttemptRef.current);
+        reconnectAttemptRef.current += 1;
+        if (mountedRef.current) {
+          setStatus('connecting');
+          setErrorMessage('Reconnecting in ' + Math.round(delay / 1000) + 's…');
+        }
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = null;
+          if (wsRef.current) try { wsRef.current.close(); } catch (_) {}
+          if (pcRef.current) try { pcRef.current.close(); } catch (_) {}
+          wsRef.current = null;
+          pcRef.current = null;
+          const { serverUrl: url, streamName: name } = playParamsRef.current;
+          if (url && name) performPlay(url, name);
+        }, delay);
+      };
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          collectedCandidates.push(e.candidate);
         }
       };
 
@@ -124,6 +152,13 @@ export function useWebRTCPlayer(videoRef, options = {}) {
         safeSetState('playing', '');
       };
 
+      pc.onconnectionstatechange = () => {
+        const state = pc.connectionState;
+        if (state === 'failed' || state === 'disconnected') {
+          if (playParamsRef.current && autoReconnect) scheduleReconnect();
+        }
+      };
+
       ws.onopen = () => {
         if (!mountedRef.current) return;
         safeSetState('connecting', 'Requesting offer…');
@@ -134,8 +169,15 @@ export function useWebRTCPlayer(videoRef, options = {}) {
         try {
           const msg = JSON.parse(ev.data);
           if (msg.command === 'offer') {
-            if (msg.ice_servers) {
-              pc.setConfiguration({ iceServers: msg.ice_servers });
+            sessionId = msg.id != null ? msg.id : 0;
+            const fromServerIce = msg.iceServers || msg.ice_servers;
+            if (fromServerIce && Array.isArray(fromServerIce)) {
+              const iceServers = fromServerIce.map((s) => ({
+                urls: s.urls,
+                username: s.username || s.user_name,
+                credential: s.credential,
+              }));
+              pc.setConfiguration({ iceServers });
             }
             const sdp = typeof msg.sdp === 'string' ? msg.sdp : msg.sdp?.sdp;
             if (!sdp) {
@@ -145,27 +187,51 @@ export function useWebRTCPlayer(videoRef, options = {}) {
             await pc.setRemoteDescription({ type: 'offer', sdp });
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ command: 'answer', sdp: answer, id: msg.id || 0 }));
+            if (pc.iceGatheringState !== 'complete') {
+              await new Promise((resolve) => {
+                const onState = () => {
+                  if (pc.iceGatheringState === 'complete') {
+                    pc.onicegatheringstatechange = null;
+                    resolve();
+                  }
+                };
+                pc.onicegatheringstatechange = onState;
+                setTimeout(resolve, 3000);
+              });
+            }
+            ws.send(JSON.stringify({
+              command: 'answer',
+              sdp: answer,
+              id: sessionId,
+              candidates: collectedCandidates.map((c) =>
+                c.toJSON ? c.toJSON() : { candidate: c.candidate, sdpMLineIndex: c.sdpMLineIndex ?? 0 }
+              ),
+            }));
             if (msg.candidates) {
               for (const c of msg.candidates) {
-                try { await pc.addIceCandidate(c); } catch (_) {}
+                try {
+                  await pc.addIceCandidate(c);
+                } catch (e) {
+                  console.warn('player addIceCandidate error', e);
+                }
               }
             }
-            safeSetState('playing', '');
             reconnectAttemptRef.current = 0;
+            safeSetState('playing', '');
           } else if (msg.command === 'candidate') {
             if (msg.candidate) {
-              try { await pc.addIceCandidate(msg.candidate); } catch (_) {}
+              try {
+                await pc.addIceCandidate(msg.candidate);
+              } catch (e) {
+                console.warn('player addIceCandidate (trickle) error', e);
+              }
             }
           } else if (msg.code && msg.code !== 200) {
             safeSetState('error', msg.message || 'Error ' + msg.code);
           }
-        } catch (_) {}
-      };
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ command: 'candidate', candidate: e.candidate, id: 0 }));
+        } catch (e) {
+          console.error('player signalling error', e);
+          safeSetState('error', e?.message || 'Signalling error');
         }
       };
 
@@ -175,19 +241,10 @@ export function useWebRTCPlayer(videoRef, options = {}) {
 
       ws.onclose = () => {
         if (!mountedRef.current || !playParamsRef.current) return;
-        safeSetState('error', 'Connection closed');
         if (autoReconnect && reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttemptRef.current += 1;
-          const delay = RECONNECT_DELAY_MS;
-          reconnectTimeoutRef.current = setTimeout(() => {
-            reconnectTimeoutRef.current = null;
-            if (wsRef.current) try { wsRef.current.close(); } catch (_) {}
-            if (pcRef.current) try { pcRef.current.close(); } catch (_) {}
-            wsRef.current = null;
-            pcRef.current = null;
-            const { serverUrl, streamName } = playParamsRef.current;
-            if (serverUrl && streamName) performPlay(serverUrl, streamName);
-          }, delay);
+          scheduleReconnect();
+        } else {
+          safeSetState('error', 'Connection closed');
         }
       };
     },

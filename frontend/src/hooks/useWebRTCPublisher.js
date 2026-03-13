@@ -3,7 +3,6 @@ import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
 // OME default application name is 'app' in the stock Server.xml
-console.log("SDfsd");
 const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;

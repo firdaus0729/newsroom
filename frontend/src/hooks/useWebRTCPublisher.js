@@ -3,6 +3,7 @@ import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
 // OME default application name is 'app' in the stock Server.xml
+console.log("SDfsd");
 const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
@@ -208,6 +209,7 @@ export function useWebRTCPublisher() {
 
       ws.onmessage = async (ev) => {
         try {
+console.log('publisher signalling message:', ev.data);
           const msg = JSON.parse(ev.data);
           if (msg.command === 'offer') {
             if (msg.ice_servers) {

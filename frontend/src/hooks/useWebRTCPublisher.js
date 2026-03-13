@@ -253,7 +253,11 @@ export function useWebRTCPublisher() {
               });
             }
             ws.send(JSON.stringify({
+<<<<<<< HEAD
               command: 'offer',
+=======
+              command: 'answer',
+>>>>>>> parent of e02f0d4 (fff)
               sdp: answer,
               id: sessionId,
               candidates: collectedCandidates.map((c) => (c.toJSON ? c.toJSON() : { candidate: c.candidate, sdpMLineIndex: c.sdpMLineIndex ?? 0 })),

@@ -4,9 +4,20 @@ export function getToken() {
   return localStorage.getItem('dashboard_token');
 }
 
-export function setToken(token) {
-  if (token) localStorage.setItem('dashboard_token', token);
-  else localStorage.removeItem('dashboard_token');
+const ROLE_KEY = 'dashboard_role';
+
+export function setToken(token, role) {
+  if (token) {
+    localStorage.setItem('dashboard_token', token);
+    if (role) localStorage.setItem(ROLE_KEY, role);
+  } else {
+    localStorage.removeItem('dashboard_token');
+    localStorage.removeItem(ROLE_KEY);
+  }
+}
+
+export function getRole() {
+  return localStorage.getItem(ROLE_KEY) || 'editor';
 }
 
 export async function login(email, password) {
@@ -94,5 +105,17 @@ export async function createEditor(email, password, name) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Failed to create editor');
+  return data;
+}
+
+/** Editor/Admin: emergency stop a reporter's stream */
+export async function stopStream(reporterId) {
+  const res = await fetch(`${API_BASE}/dashboard/streams/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ reporter_id: reporterId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to stop stream');
   return data;
 }

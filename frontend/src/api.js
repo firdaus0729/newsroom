@@ -98,18 +98,39 @@ export async function sendBreakingNews(message) {
   return data;
 }
 
-/** Upload a clip (video/audio). Returns { id, file_name, ... } or throws. */
-export async function uploadClip(file) {
+/** Upload a clip (video/audio). Optional onProgress(percent 0-100). Returns { id, file_name, ... } or throws. */
+export function uploadClip(file, onProgress) {
   const token = getToken();
-  if (!token) throw new Error('Not authenticated');
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch(`${API_BASE}/upload`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
+  if (!token) return Promise.reject(new Error('Not authenticated'));
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const form = new FormData();
+    form.append('file', file);
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && typeof onProgress === 'function') {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error('Upload failed'));
+        }
+      } else {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          reject(new Error(data.error || 'Upload failed'));
+        } catch {
+          reject(new Error('Upload failed'));
+        }
+      }
+    });
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+    xhr.open('POST', `${API_BASE}/upload`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.send(form);
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Upload failed');
-  return data;
 }

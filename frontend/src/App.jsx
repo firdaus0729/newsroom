@@ -9,7 +9,11 @@ import RoomReporters from './pages/room/Reporters';
 import RoomLiveStreams from './pages/room/LiveStreams';
 import RoomUploads from './pages/room/Uploads';
 import RoomEditors from './pages/room/Editors';
+import AdminLogin from './pages/admin/Login';
+import AdminLayout from './pages/admin/Layout';
+import AdminReporters from './pages/admin/Reporters';
 import { getToken as getRoomToken } from './roomApi';
+import { getAdminToken } from './adminApi';
 
 function ProtectedRoute({ children }) {
   const { reporter, loading } = useAuth();
@@ -20,6 +24,11 @@ function ProtectedRoute({ children }) {
 
 function RoomProtected({ children }) {
   if (!getRoomToken()) return <Navigate to="/room/login" replace />;
+  return children;
+}
+
+function AdminProtected({ children }) {
+  if (!getAdminToken()) return <Navigate to="/admin/login" replace />;
   return children;
 }
 
@@ -46,6 +55,13 @@ export default function App() {
         <Route path="live" element={<RoomLiveStreams />} />
         <Route path="uploads" element={<RoomUploads />} />
         <Route path="editors" element={<RoomEditors />} />
+      </Route>
+
+      {/* Admin panel */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin" element={<AdminProtected><AdminLayout /></AdminProtected>}>
+        <Route index element={<Navigate to="reporters" replace />} />
+        <Route path="reporters" element={<AdminReporters />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

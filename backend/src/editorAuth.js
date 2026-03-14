@@ -18,6 +18,18 @@ export function verifyEditorToken(token) {
   }
 }
 
+/** Returns { role: 'admin'|'editor', decoded } or null */
+export function verifyDashboardToken(token) {
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded?.role === 'admin' || decoded?.role === 'editor') return { role: decoded.role, decoded };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function editorAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -29,7 +41,31 @@ export function editorAuthMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
   req.editor = decoded;
+  req.role = 'editor';
   next();
+}
+
+/** Require either editor or admin (dashboard routes). Sets req.role and req.editor or req.admin. */
+export async function editorOrAdminMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { verifyAdminToken } = await import('./adminAuth.js');
+  const adminDecoded = verifyAdminToken(token);
+  if (adminDecoded) {
+    req.role = 'admin';
+    req.admin = adminDecoded;
+    return next();
+  }
+  const decoded = verifyEditorToken(token);
+  if (decoded) {
+    req.role = 'editor';
+    req.editor = decoded;
+    return next();
+  }
+  return res.status(401).json({ error: 'Invalid or expired token' });
 }
 
 export async function editorLogin(email, password) {

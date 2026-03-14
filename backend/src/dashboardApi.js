@@ -168,6 +168,25 @@ export async function endStreamSession(reporterId, streamName) {
   return session;
 }
 
+/** Editor/Admin forces stop of a reporter's stream. Logs editor_stopped_stream. */
+export async function endStreamSessionByEditor(reporterId) {
+  const streamName = `reporter_${reporterId}`;
+  const { rows } = await query(
+    `UPDATE stream_sessions SET ended_at = NOW()
+     WHERE reporter_id = $1 AND stream_name = $2 AND ended_at IS NULL
+     RETURNING id, reporter_id, stream_name, started_at, ended_at`,
+    [reporterId, streamName]
+  );
+  const session = rows[0];
+  if (session) {
+    await query(
+      `INSERT INTO activity_feed (type, reporter_id, stream_session_id, message) VALUES ('editor_stopped_stream', $1, $2, $3)`,
+      [reporterId, session.id, 'Stream stopped by editor/admin']
+    );
+  }
+  return session;
+}
+
 export async function createBreakingNews(reporterId, message) {
   const trimmed = (message || '').trim();
   if (!trimmed) {

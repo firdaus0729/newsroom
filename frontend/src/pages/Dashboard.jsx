@@ -72,6 +72,7 @@ export default function Dashboard() {
   const [alertStatus, setAlertStatus] = useState({ type: '', text: '' });
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadMessage, setUploadMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -138,12 +139,15 @@ export default function Dashboard() {
     if (!uploadFile) return;
     setUploadMessage({ type: '', text: '' });
     setUploading(true);
+    setUploadProgress(0);
     try {
-      await api.uploadClip(uploadFile);
+      await api.uploadClip(uploadFile, (percent) => setUploadProgress(percent));
       setUploadMessage({ type: 'success', text: `"${uploadFile.name}" uploaded. Editors can see it in Uploaded Clips.` });
       setUploadFile(null);
+      setUploadProgress(0);
     } catch (err) {
       setUploadMessage({ type: 'error', text: err.message || 'Upload failed' });
+      setUploadProgress(0);
     } finally {
       setUploading(false);
     }
@@ -336,7 +340,7 @@ export default function Dashboard() {
 
         <section className="upload-section">
           <h2 className="upload-title">Upload clip</h2>
-          <p className="upload-intro">Send a video or audio clip to the newsroom. Editors can view and download it from Uploaded Clips.</p>
+          <p className="upload-intro">Send a video or audio clip to the newsroom (max 300 MB). Editors can view and download it from Uploaded Clips.</p>
           <form onSubmit={handleUploadClip} className="upload-form">
             <label htmlFor="clip-file" className="upload-label">Choose file</label>
             <input
@@ -346,11 +350,18 @@ export default function Dashboard() {
               onChange={(e) => {
                 setUploadFile(e.target.files?.[0] || null);
                 setUploadMessage({ type: '', text: '' });
+                setUploadProgress(0);
               }}
               className="upload-input"
               disabled={uploading}
             />
             {uploadFile && <span className="upload-filename">{uploadFile.name}</span>}
+            {uploading && (
+              <div className="upload-progress-wrap">
+                <div className="upload-progress-bar" style={{ width: `${uploadProgress}%` }} />
+                <span className="upload-progress-text">{uploadProgress}%</span>
+              </div>
+            )}
             <button type="submit" className="btn btn-upload" disabled={!uploadFile || uploading}>
               {uploading ? 'Uploading…' : 'Upload clip'}
             </button>

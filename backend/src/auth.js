@@ -84,3 +84,10 @@ export async function signup(email, password, name) {
     throw e;
   }
 }
+
+/** Create a reporter (admin only). Returns reporter without token. */
+export async function createReporter(email, password, name) {
+  const result = await signup(email, password, name);
+  if (!result.ok) return result;
+  return { ok: true, reporter: result.reporter };
+}

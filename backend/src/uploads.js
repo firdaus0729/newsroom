@@ -6,7 +6,7 @@ import { isObjectStorageEnabled, uploadFileFromPath } from './objectStorage.js';
 export const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
 
 const ALLOWED_MIME_PREFIXES = ['video/', 'audio/', 'application/mp4', 'application/octet-stream'];
-const MAX_FILE_SIZE = Number(process.env.UPLOAD_MAX_SIZE_MB) || 500; // MB
+const MAX_FILE_SIZE = Number(process.env.UPLOAD_MAX_SIZE_MB) || 300; // MB (max per file to avoid server overload)
 
 export function getAllowedMimeTypes() {
   return ALLOWED_MIME_PREFIXES;

@@ -17,8 +17,8 @@ export default function RoomLogin() {
     setError('');
     setLoading(true);
     try {
-      const { token, editor } = await roomApi.login(email.trim(), password);
-      roomApi.setToken(token);
+      const { token, editor, role } = await roomApi.login(email.trim(), password);
+      roomApi.setToken(token, role || 'editor');
       navigate('/room', { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed');

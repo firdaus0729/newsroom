@@ -11,6 +11,8 @@
 .status-offline { background: var(--muted); }
 .btn-sm { padding: 0.35rem 0.6rem; font-size: 0.8rem; margin-right: 0.35rem; margin-bottom: 0.25rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; min-height: 36px; }
 .btn-sm:hover { background: var(--border); }
+.btn-stop-stream { background: var(--danger, #f85149); color: #fff; border-color: var(--danger, #f85149); }
+.btn-stop-stream:hover:not(:disabled) { opacity: 0.9; }
 .preview-panel h3, .activity-panel h3 { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--muted); }
 .preview-wrap { position: relative; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; }
 .preview-video { width: 100%; height: 100%; object-fit: contain; }

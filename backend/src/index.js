@@ -4,8 +4,9 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
-import { authMiddleware, login, signup, getReporterById } from './auth.js';
-import { editorAuthMiddleware, editorLogin, createEditor } from './editorAuth.js';
+import { authMiddleware, login, signup, getReporterById, createReporter } from './auth.js';
+import { editorAuthMiddleware, editorOrAdminMiddleware, editorLogin, createEditor } from './editorAuth.js';
+import { adminAuthMiddleware, adminLogin } from './adminAuth.js';
 import * as dashboardApi from './dashboardApi.js';
 import { ensureDatabaseAndSchema } from './ensureDb.js';
 import { getUploadFilePath, ensureUploadsDir, UPLOADS_DIR, createUpload, validateUploadFile } from './uploads.js';
@@ -25,7 +26,7 @@ const reporterUpload = multer({
       cb(null, `${req.user.id}_${Date.now()}_${safe}`);
     },
   }),
-  limits: { fileSize: (Number(process.env.UPLOAD_MAX_SIZE_MB) || 500) * 1024 * 1024 },
+  limits: { fileSize: (Number(process.env.UPLOAD_MAX_SIZE_MB) || 300) * 1024 * 1024 },
 }).single('file');
 
 const rateBuckets = new Map();
@@ -168,20 +169,33 @@ app.post('/upload', authMiddleware, rateLimit({ windowMs: 60_000, max: 30 }), (r
   }
 });
 
-// ----- Newsroom Dashboard (editor auth) -----
+// ----- Newsroom Dashboard (editor or admin login; role-based) -----
 app.post('/dashboard/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
+  // Try admin first, then editor
+  const adminResult = await adminLogin(email, password);
+  if (adminResult.ok) {
+    return res.json({
+      token: adminResult.token,
+      editor: adminResult.admin,
+      role: 'admin',
+    });
+  }
   const result = await editorLogin(email, password);
   if (!result.ok) {
     return res.status(401).json({ error: result.error });
   }
-  return res.json({ token: result.token, editor: result.editor });
+  return res.json({ token: result.token, editor: result.editor, role: 'editor' });
 });
 
-app.post('/dashboard/editors', editorAuthMiddleware, async (req, res) => {
+/** Only admin can add editors */
+app.post('/dashboard/editors', editorOrAdminMiddleware, async (req, res) => {
+  if (req.role !== 'admin') {
+    return res.status(403).json({ error: 'Only administrators can add or remove editors' });
+  }
   const { email, password, name } = req.body || {};
   const result = await createEditor(email, password, name);
   if (!result.ok) {
@@ -191,7 +205,21 @@ app.post('/dashboard/editors', editorAuthMiddleware, async (req, res) => {
   return res.status(201).json(result.editor);
 });
 
-app.get('/dashboard/reporters', editorAuthMiddleware, async (_, res) => {
+/** Editor or admin: stop a reporter's stream (emergency control) */
+app.post('/dashboard/streams/stop', editorOrAdminMiddleware, async (req, res) => {
+  const reporterId = req.body?.reporter_id != null ? parseInt(req.body.reporter_id, 10) : null;
+  if (!reporterId || !Number.isFinite(reporterId)) {
+    return res.status(400).json({ error: 'reporter_id required' });
+  }
+  try {
+    const session = await dashboardApi.endStreamSessionByEditor(reporterId);
+    return res.json(session || { message: 'No active session for that reporter' });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/dashboard/reporters', editorOrAdminMiddleware, async (_, res) => {
   try {
     const reporters = await dashboardApi.getReporters();
     const live = await dashboardApi.getLiveReporters();
@@ -210,7 +238,7 @@ app.get('/dashboard/reporters', editorAuthMiddleware, async (_, res) => {
   }
 });
 
-app.get('/dashboard/reporters/live', editorAuthMiddleware, async (_, res) => {
+app.get('/dashboard/reporters/live', editorOrAdminMiddleware, async (_, res) => {
   try {
     const live = await dashboardApi.getLiveReporters();
     return res.json(live);
@@ -219,7 +247,7 @@ app.get('/dashboard/reporters/live', editorAuthMiddleware, async (_, res) => {
   }
 });
 
-app.get('/dashboard/streams', editorAuthMiddleware, async (_, res) => {
+app.get('/dashboard/streams', editorOrAdminMiddleware, async (_, res) => {
   try {
     const streams = await dashboardApi.getStreams();
     return res.json(streams);
@@ -228,7 +256,7 @@ app.get('/dashboard/streams', editorAuthMiddleware, async (_, res) => {
   }
 });
 
-app.get('/dashboard/uploads', editorAuthMiddleware, async (req, res) => {
+app.get('/dashboard/uploads', editorOrAdminMiddleware, async (req, res) => {
   try {
     const reporter_id = req.query.reporter_id ? parseInt(req.query.reporter_id, 10) : undefined;
     const from_date = req.query.from_date || undefined;
@@ -240,7 +268,7 @@ app.get('/dashboard/uploads', editorAuthMiddleware, async (req, res) => {
   }
 });
 
-app.get('/dashboard/uploads/:id', editorAuthMiddleware, async (req, res) => {
+app.get('/dashboard/uploads/:id', editorOrAdminMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const upload = await dashboardApi.getUploadById(id);
@@ -251,7 +279,7 @@ app.get('/dashboard/uploads/:id', editorAuthMiddleware, async (req, res) => {
   }
 });
 
-app.get('/dashboard/uploads/:id/download', editorAuthMiddleware, async (req, res) => {
+app.get('/dashboard/uploads/:id/download', editorOrAdminMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const upload = await dashboardApi.getUploadById(id);
@@ -276,12 +304,92 @@ app.get('/dashboard/uploads/:id/download', editorAuthMiddleware, async (req, res
   }
 });
 
-app.get('/dashboard/activity', editorAuthMiddleware, async (req, res) => {
+app.get('/dashboard/activity', editorOrAdminMiddleware, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
     const activity = await dashboardApi.getActivityFeed(limit);
     return res.json(activity);
   } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ----- Admin-only routes (/admin) -----
+app.post('/admin/login', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+  const result = await adminLogin(email, password);
+  if (!result.ok) {
+    return res.status(401).json({ error: result.error });
+  }
+  return res.json({ token: result.token, admin: result.admin });
+});
+
+app.get('/admin/reporters', adminAuthMiddleware, async (_, res) => {
+  try {
+    const reporters = await dashboardApi.getReporters();
+    return res.json(reporters);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/reporters', adminAuthMiddleware, rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const { email, password, name } = req.body || {};
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'Email, password and name are required' });
+  }
+  const result = await createReporter(email, password, name.trim());
+  if (!result.ok) {
+    const status = result.error === 'Email already registered' ? 409 : 400;
+    return res.status(status).json({ error: result.error });
+  }
+  return res.status(201).json(result.reporter);
+});
+
+// Register a recording file (e.g. from FFmpeg after stream ends) so it appears in Uploaded Clips
+const adminUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => {
+      const reporterId = req.body?.reporter_id || 'unknown';
+      const safe = (file.originalname || 'recording').replace(/\W/g, '_').slice(0, 120);
+      cb(null, `recording_${reporterId}_${Date.now()}_${safe}`);
+    },
+  }),
+  limits: { fileSize: (Number(process.env.UPLOAD_MAX_SIZE_MB) || 300) * 1024 * 1024 },
+}).single('file');
+
+app.post('/admin/register-recording', adminAuthMiddleware, (req, res, next) => {
+  adminUpload(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'File too large' });
+      return res.status(400).json({ error: err.message || 'Upload failed' });
+    }
+    next();
+  });
+}, async (req, res) => {
+  const reporterId = req.body?.reporter_id != null ? parseInt(req.body.reporter_id, 10) : null;
+  if (!reporterId || !Number.isFinite(reporterId) || !req.file) {
+    return res.status(400).json({ error: 'reporter_id and file are required' });
+  }
+  const validation = validateUploadFile(req.file);
+  if (!validation.ok) {
+    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    return res.status(400).json({ error: validation.error });
+  }
+  try {
+    const upload = await createUpload(reporterId, {
+      path: req.file.filename,
+      originalname: req.file.originalname || `recording_${reporterId}.mp4`,
+      size: req.file.size,
+      mimetype: req.file.mimetype || 'video/mp4',
+    });
+    return res.status(201).json(upload);
+  } catch (e) {
+    try { fs.unlinkSync(req.file.path); } catch (_) {}
     return res.status(500).json({ error: e.message });
   }
 });

@@ -37,28 +37,41 @@ export default function Reporters() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [previewStream, setPreviewStream] = useState(null);
+  const [stoppingId, setStoppingId] = useState(null);
   const previewVideoRef = useRef(null);
   const { status: playerStatus, errorMessage: playerError, play: playPreview, stop: stopPreview } = useWebRTCPlayer(previewVideoRef);
 
+  const load = React.useCallback(async () => {
+    try {
+      const [r, a] = await Promise.all([roomApi.getReporters(), roomApi.getActivity(30)]);
+      setReporters(r);
+      setActivity(a);
+      setError('');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        const [r, a] = await Promise.all([roomApi.getReporters(), roomApi.getActivity(30)]);
-        if (!cancelled) {
-          setReporters(r);
-          setActivity(a);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    const t = setInterval(load, 10000);
+    load().then(() => { if (!cancelled) setLoading(false); });
+    const t = setInterval(() => { if (!cancelled) load(); }, 10000);
     return () => { cancelled = true; clearInterval(t); };
-  }, []);
+  }, [load]);
+
+  async function handleStopStream(reporterId) {
+    setStoppingId(reporterId);
+    try {
+      await roomApi.stopStream(reporterId);
+      await load();
+    } catch (e) {
+      alert(e.message || 'Failed to stop stream');
+    } finally {
+      setStoppingId(null);
+    }
+  }
 
   function handleViewStream(_webrtcUrl, streamName) {
     stopPreview();
@@ -105,6 +118,9 @@ export default function Reporters() {
                       <>
                         <button type="button" className="btn-sm" onClick={() => handleViewStream(r.webrtc_url, r.stream_name)}>View Stream</button>
                         <button type="button" className="btn-sm" onClick={() => handleCopyRtmp(r.rtmp_url)}>Copy RTMP URL</button>
+                        <button type="button" className="btn-sm btn-stop-stream" onClick={() => handleStopStream(r.id)} disabled={stoppingId === r.id}>
+                          {stoppingId === r.id ? 'Stopping…' : 'Stop Stream'}
+                        </button>
                       </>
                     )}
                   </td>
@@ -134,6 +150,7 @@ export default function Reporters() {
                 <span className="activity-time">{new Date(a.created_at).toLocaleTimeString()}</span>
                 {a.type === 'went_live' && <span>{a.reporter_name || 'Reporter'} went live</span>}
                 {a.type === 'stopped_stream' && <span>{a.reporter_name || 'Reporter'} stopped stream</span>}
+                {a.type === 'editor_stopped_stream' && <span>{a.reporter_name || 'Reporter'} stream stopped by editor/admin</span>}
                 {a.type === 'uploaded_clip' && <span>{a.reporter_name || 'Reporter'} uploaded a clip</span>}
                 {a.type === 'breaking_news' && (
                   <span className="activity-breaking">

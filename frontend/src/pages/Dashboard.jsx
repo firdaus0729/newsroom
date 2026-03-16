@@ -7,7 +7,7 @@ import * as api from '../api';
 import './Dashboard.css';
 
 const OME_WS_URL = import.meta.env.VITE_OME_WS_URL || '';
-const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
+const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'reporter_1';
 
 function getDefaultOmeUrl() {
   if (OME_WS_URL) {

@@ -346,9 +346,8 @@ export default function Dashboard() {
                   type="button"
                   className="return-feed-unmute"
                   onClick={handleCopyRtmp}
-                  title={returnFeedInfo?.rtmp_url || ''}
                 >
-                  {rtmpCopied ? 'Copied!' : 'Tap to get RTMP'}
+                  Tap to get RTMP
                 </button>
               </div>
             )}

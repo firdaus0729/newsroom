@@ -7,7 +7,8 @@ import * as api from '../api';
 import './Dashboard.css';
 
 const OME_WS_URL = import.meta.env.VITE_OME_WS_URL || '';
-const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'reporter_1';
+const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
+const STUDIO_RTMP_BASE = import.meta.env.VITE_RTMP_BASE_URL || '';
 
 function getDefaultOmeUrl() {
   if (OME_WS_URL) {
@@ -130,13 +131,19 @@ export default function Dashboard() {
 
   const handleLoadReturnFeed = () => {
     if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
-    const name = reporter?.studio_return_feed?.stream_name || RETURN_FEED_STREAM;
-    playReturnFeed(omeUrl, name);
+    // Studio program feed stream name comes from env (same across reporters)
+    playReturnFeed(omeUrl, RETURN_FEED_STREAM);
   };
 
   const handleCopyRtmp = () => {
-    const url = reporter?.studio_return_feed?.rtmp_url || '';
-    if (!url) return;
+    let base = (STUDIO_RTMP_BASE || '').trim();
+    if (!base) {
+      if (typeof window === 'undefined') return;
+      const host = window.location.hostname || 'localhost';
+      base = `rtmp://${host}/live`;
+    }
+    base = base.replace(/\/*$/, '');
+    const url = `${base}/${RETURN_FEED_STREAM}_rtmp`;
     navigator.clipboard.writeText(url).then(() => alert('RTMP URL copied')).catch(() => {});
   };
 

@@ -175,10 +175,13 @@ app.get('/studio/return-feed', (_req, res) => {
     const streamName = process.env.RETURN_FEED_STREAM || 'program';
     const appName = 'live';
     const webrtcPath = `/ome-ws/${appName}/${encodeURIComponent(streamName)}`;
+    const rtmpBase = (process.env.RTMP_BASE_URL || 'rtmp://localhost/live').replace(/\/*$/, '');
+    const rtmpUrl = `${rtmpBase}/${streamName}_rtmp`;
     return res.json({
       stream_name: streamName,
       app: appName,
       webrtc_path: webrtcPath,
+      rtmp_url: rtmpUrl,
     });
   } catch (e) {
     return res.status(500).json({ error: e.message });

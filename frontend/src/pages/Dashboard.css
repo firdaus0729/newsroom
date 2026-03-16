@@ -335,6 +335,26 @@
   background: rgba(0, 0, 0, 0.9);
 }
 
+.return-feed-unmute-group {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100% - 1rem);
+}
+
+.return-feed-unmute-group .return-feed-unmute {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  white-space: nowrap;
+}
+
 .upload-section {
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);

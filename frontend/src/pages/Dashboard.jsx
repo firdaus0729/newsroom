@@ -41,6 +41,8 @@ export default function Dashboard() {
   const previewVideoRef = useRef(null);
   const returnFeedVideoRef = useRef(null);
   const [bitrate, setBitrate] = useState(DEFAULT_BITRATE);
+  const [returnFeedInfo, setReturnFeedInfo] = useState(null);
+  const [rtmpCopied, setRtmpCopied] = useState(false);
 
   const {
     status: pubStatus,
@@ -132,12 +134,53 @@ export default function Dashboard() {
     if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
     try {
       const info = await api.getStudioReturnFeed();
+      setReturnFeedInfo(info || null);
       const name = info?.stream_name || RETURN_FEED_STREAM;
       playReturnFeed(omeUrl, name);
     } catch (err) {
       // Backend failure will surface as a player error message if OME is unreachable;
       // here we just log so reporters can retry.
       console.error('Failed to load studio return feed info', err);
+    }
+  };
+
+  async function copyText(text) {
+    const value = (text || '').trim();
+    if (!value) return false;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch (_) {}
+    try {
+      const el = document.createElement('textarea');
+      el.value = value;
+      el.setAttribute('readonly', '');
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      el.style.top = '0';
+      document.body.appendChild(el);
+      el.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(el);
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  const handleCopyRtmp = async () => {
+    try {
+      const info = returnFeedInfo || (await api.getStudioReturnFeed());
+      setReturnFeedInfo(info || null);
+      const ok = await copyText(info?.rtmp_url);
+      if (ok) {
+        setRtmpCopied(true);
+        setTimeout(() => setRtmpCopied(false), 1500);
+      }
+    } catch (err) {
+      console.error('Failed to copy RTMP URL', err);
     }
   };
 
@@ -328,13 +371,24 @@ export default function Dashboard() {
               muted={false}
             />
             {audioBlocked && (
-              <button
-                type="button"
-                className="return-feed-unmute"
-                onClick={tryUnmute}
-              >
-                Tap to play audio
-              </button>
+              <div className="return-feed-unmute-group">
+                <button
+                  type="button"
+                  className="return-feed-unmute"
+                  onClick={tryUnmute}
+                >
+                  Tap to play audio
+                </button>
+                <button
+                  type="button"
+                  className="return-feed-unmute"
+                  onClick={handleCopyRtmp}
+                  disabled={!returnFeedInfo?.rtmp_url && playerStatus !== 'playing'}
+                  title={returnFeedInfo?.rtmp_url || ''}
+                >
+                  {rtmpCopied ? 'Copied!' : 'Tap to get RMTP'}
+                </button>
+              </div>
             )}
             <div className="return-feed-placeholder">
               {playerStatus === 'idle' && 'Click "Load return feed" when the studio stream is ready'}

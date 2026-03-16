@@ -107,3 +107,9 @@ export async function createEditor(email, password, name) {
     throw e;
   }
 }
+
+/** Delete editor (admin only). */
+export async function deleteEditor(id) {
+  await query('DELETE FROM editors WHERE id = $1', [id]);
+  return { ok: true };
+}

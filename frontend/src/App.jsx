@@ -8,10 +8,11 @@ import RoomLayout from './pages/room/Layout';
 import RoomReporters from './pages/room/Reporters';
 import RoomLiveStreams from './pages/room/LiveStreams';
 import RoomUploads from './pages/room/Uploads';
-import RoomEditors from './pages/room/Editors';
+import RoomAlerts from './pages/room/Alerts';
 import AdminLogin from './pages/admin/Login';
 import AdminLayout from './pages/admin/Layout';
 import AdminReporters from './pages/admin/Reporters';
+import AdminEditors from './pages/admin/Editors';
 import { getToken as getRoomToken } from './roomApi';
 import { getAdminToken } from './adminApi';
 
@@ -54,7 +55,7 @@ export default function App() {
         <Route path="reporters" element={<RoomReporters />} />
         <Route path="live" element={<RoomLiveStreams />} />
         <Route path="uploads" element={<RoomUploads />} />
-        <Route path="editors" element={<RoomEditors />} />
+        <Route path="alerts" element={<RoomAlerts />} />
       </Route>
 
       {/* Admin panel */}
@@ -62,6 +63,7 @@ export default function App() {
       <Route path="/admin" element={<AdminProtected><AdminLayout /></AdminProtected>}>
         <Route index element={<Navigate to="reporters" replace />} />
         <Route path="reporters" element={<AdminReporters />} />
+        <Route path="editors" element={<AdminEditors />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

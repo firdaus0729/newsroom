@@ -4,8 +4,8 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
-import { authMiddleware, login, signup, getReporterById, createReporter } from './auth.js';
-import { editorAuthMiddleware, editorOrAdminMiddleware, editorLogin, createEditor } from './editorAuth.js';
+import { authMiddleware, login, signup, getReporterById, createReporter, deleteReporter } from './auth.js';
+import { editorAuthMiddleware, editorOrAdminMiddleware, editorLogin, createEditor, deleteEditor } from './editorAuth.js';
 import { adminAuthMiddleware, adminLogin } from './adminAuth.js';
 import * as dashboardApi from './dashboardApi.js';
 import { ensureDatabaseAndSchema } from './ensureDb.js';
@@ -347,6 +347,54 @@ app.post('/admin/reporters', adminAuthMiddleware, rateLimit({ windowMs: 60_000, 
     return res.status(status).json({ error: result.error });
   }
   return res.status(201).json(result.reporter);
+});
+
+app.delete('/admin/reporters/:id', adminAuthMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || !Number.isFinite(id)) {
+    return res.status(400).json({ error: 'Invalid reporter id' });
+  }
+  try {
+    await deleteReporter(id);
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/admin/editors', adminAuthMiddleware, async (_req, res) => {
+  try {
+    const { rows } = await (await import('./db.js')).query(
+      'SELECT id, email, name, created_at FROM editors ORDER BY name',
+      []
+    );
+    return res.json(rows);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/editors', adminAuthMiddleware, rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const { email, password, name } = req.body || {};
+  const result = await createEditor(email, password, name);
+  if (!result.ok) {
+    const status = result.error === 'Email already registered' ? 409 : 400;
+    return res.status(status).json({ error: result.error });
+  }
+  return res.status(201).json(result.editor);
+});
+
+app.delete('/admin/editors/:id', adminAuthMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || !Number.isFinite(id)) {
+    return res.status(400).json({ error: 'Invalid editor id' });
+  }
+  try {
+    await deleteEditor(id);
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 // Register a recording file (e.g. from FFmpeg after stream ends) so it appears in Uploaded Clips

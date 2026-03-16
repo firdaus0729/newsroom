@@ -19,6 +19,9 @@ export default function AdminLayout() {
           <NavLink to="reporters" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
             Reporters
           </NavLink>
+          <NavLink to="editors" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+            Editors
+          </NavLink>
         </nav>
         <button type="button" className="btn-logout" onClick={handleLogout}>
           Log out

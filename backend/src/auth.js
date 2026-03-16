@@ -91,3 +91,9 @@ export async function createReporter(email, password, name) {
   if (!result.ok) return result;
   return { ok: true, reporter: result.reporter };
 }
+
+/** Delete reporter (admin only). Cascades to sessions/uploads via FK constraints. */
+export async function deleteReporter(id) {
+  await query('DELETE FROM reporters WHERE id = $1', [id]);
+  return { ok: true };
+}

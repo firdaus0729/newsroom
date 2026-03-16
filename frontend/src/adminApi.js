@@ -43,3 +43,41 @@ export async function createReporter(email, password, name) {
   if (!res.ok) throw new Error(data.error || 'Failed to create reporter');
   return data;
 }
+
+export async function deleteReporter(id) {
+  const res = await fetch(`${API_BASE}/admin/reporters/${id}`, {
+    method: 'DELETE',
+    headers: adminAuthHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to delete reporter');
+  return data;
+}
+
+export async function getEditors() {
+  const res = await fetch(`${API_BASE}/admin/editors`, { headers: adminAuthHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to load editors');
+  return data;
+}
+
+export async function createEditor(email, password, name) {
+  const res = await fetch(`${API_BASE}/admin/editors`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...adminAuthHeaders() },
+    body: JSON.stringify({ email, password, name }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to create editor');
+  return data;
+}
+
+export async function deleteEditor(id) {
+  const res = await fetch(`${API_BASE}/admin/editors/${id}`, {
+    method: 'DELETE',
+    headers: adminAuthHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to delete editor');
+  return data;
+}

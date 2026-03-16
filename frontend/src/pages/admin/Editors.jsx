@@ -3,8 +3,8 @@ import * as adminApi from '../../adminApi';
 import '../../pages/room/Reporters.css';
 import '../../pages/room/Editors.css';
 
-export default function AdminReporters() {
-  const [reporters, setReporters] = useState([]);
+export default function AdminEditors() {
+  const [editors, setEditors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [name, setName] = useState('');
@@ -17,8 +17,8 @@ export default function AdminReporters() {
 
   const load = React.useCallback(async () => {
     try {
-      const list = await adminApi.getAdminReporters();
-      setReporters(list);
+      const list = await adminApi.getEditors();
+      setEditors(list);
       setError('');
     } catch (e) {
       setError(e.message);
@@ -31,33 +31,33 @@ export default function AdminReporters() {
     load();
   }, [load]);
 
-  async function handleAddReporter(e) {
+  async function handleAddEditor(e) {
     e.preventDefault();
     setAddError('');
     setAddSuccess('');
     setSubmitting(true);
     try {
-      await adminApi.createReporter(email.trim(), password, name.trim());
-      setAddSuccess(`Reporter "${name.trim()}" created. They can log in at the reporter portal.`);
+      await adminApi.createEditor(email.trim(), password, name.trim());
+      setAddSuccess(`Editor "${name.trim()}" created. They can log in to the Newsroom Dashboard.`);
       setName('');
       setEmail('');
       setPassword('');
       load();
     } catch (err) {
-      setAddError(err.message || 'Failed to create reporter');
+      setAddError(err.message || 'Failed to create editor');
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleDeleteReporter(id) {
-    if (!window.confirm('Remove this reporter? This will also remove their sessions and uploads.')) return;
+  async function handleDeleteEditor(id) {
+    if (!window.confirm('Remove this editor?')) return;
     setDeletingId(id);
     try {
-      await adminApi.deleteReporter(id);
+      await adminApi.deleteEditor(id);
       load();
     } catch (e) {
-      alert(e.message || 'Failed to delete reporter');
+      alert(e.message || 'Failed to delete editor');
     } finally {
       setDeletingId(null);
     }
@@ -68,30 +68,52 @@ export default function AdminReporters() {
 
   return (
     <div className="reporters-page">
-      <h1>Reporters</h1>
-      <p className="muted">Add reporters who can log in and go live from the reporter portal.</p>
+      <h1>Editors</h1>
+      <p className="muted">Manage editors who can access the Newsroom Dashboard.</p>
 
       <div className="editors-page" style={{ marginTop: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.1rem' }}>Add reporter</h2>
-        <form onSubmit={handleAddReporter} className="editors-form">
-          <label htmlFor="rep-name">Name</label>
-          <input id="rep-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Jane Doe" required />
-          <label htmlFor="rep-email">Email</label>
-          <input id="rep-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="e.g. jane@newsroom.local" required />
-          <label htmlFor="rep-password">Password</label>
-          <input id="rep-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" required minLength={6} />
+        <h2 style={{ fontSize: '1.1rem' }}>Add editor</h2>
+        <form onSubmit={handleAddEditor} className="editors-form">
+          <label htmlFor="ed-name">Name</label>
+          <input
+            id="ed-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Jane Smith"
+            required
+          />
+          <label htmlFor="ed-email">Email</label>
+          <input
+            id="ed-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="e.g. jane@newsroom.local"
+            required
+          />
+          <label htmlFor="ed-password">Password</label>
+          <input
+            id="ed-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 6 characters"
+            required
+            minLength={6}
+          />
           {addError && <p className="editors-error">{addError}</p>}
           {addSuccess && <p className="editors-success">{addSuccess}</p>}
           <button type="submit" className="btn-submit" disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create reporter'}
+            {submitting ? 'Creating…' : 'Create editor'}
           </button>
         </form>
       </div>
 
       <div style={{ marginTop: '2rem' }}>
-        <h2 style={{ fontSize: '1.1rem' }}>All reporters ({reporters.length})</h2>
-        {reporters.length === 0 ? (
-          <p className="muted">No reporters yet. Add one above.</p>
+        <h2 style={{ fontSize: '1.1rem' }}>All editors ({editors.length})</h2>
+        {editors.length === 0 ? (
+          <p className="muted">No editors yet. Add one above.</p>
         ) : (
           <table className="reporters-table" style={{ marginTop: '0.5rem' }}>
             <thead>
@@ -103,19 +125,19 @@ export default function AdminReporters() {
               </tr>
             </thead>
             <tbody>
-              {reporters.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.name}</td>
-                  <td>{r.email}</td>
-                  <td>{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+              {editors.map((e) => (
+                <tr key={e.id}>
+                  <td>{e.name}</td>
+                  <td>{e.email}</td>
+                  <td>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
                   <td>
                     <button
                       type="button"
                       className="btn-sm btn-delete"
-                      onClick={() => handleDeleteReporter(r.id)}
-                      disabled={deletingId === r.id}
+                      onClick={() => handleDeleteEditor(e.id)}
+                      disabled={deletingId === e.id}
                     >
-                      {deletingId === r.id ? 'Removing…' : 'Remove'}
+                      {deletingId === e.id ? 'Removing…' : 'Remove'}
                     </button>
                   </td>
                 </tr>
@@ -127,3 +149,4 @@ export default function AdminReporters() {
     </div>
   );
 }
+

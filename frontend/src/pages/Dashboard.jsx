@@ -280,9 +280,8 @@ export default function Dashboard() {
                   setAlertText(e.target.value);
                   setAlertStatus({ type: '', text: '' });
                 }}
-                maxLength={280}
-                rows={2}
-                placeholder="Short headline or description"
+                rows={4}
+                placeholder="Headline, script, or longer notes for the newsroom"
               />
               <button type="submit" className="btn btn-alert" disabled={!alertText.trim()}>
                 Send alert

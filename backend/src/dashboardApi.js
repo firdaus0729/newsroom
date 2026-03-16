@@ -198,7 +198,7 @@ export async function createBreakingNews(reporterId, message) {
     `INSERT INTO activity_feed (type, reporter_id, message)
      VALUES ('breaking_news', $1, $2)
      RETURNING id, type, reporter_id, message, created_at`,
-    [reporterId, trimmed.slice(0, 500)]
+    [reporterId, trimmed]
   );
   return rows[0];
 }

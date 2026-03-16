@@ -128,16 +128,9 @@ export default function Dashboard() {
     }
   };
 
-  const handleLoadReturnFeed = async () => {
-    if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
-    try {
-      const info = await api.getStudioReturnFeed();
-      const name = info?.stream_name || RETURN_FEED_STREAM;
-      playReturnFeed(omeUrl, name);
-    } catch (err) {
-      // Backend failure will surface as a player error message if OME is unreachable;
-      // here we just log so reporters can retry.
-      console.error('Failed to load studio return feed info', err);
+  const handleLoadReturnFeed = () => {
+    if (playerStatus === 'idle' || playerStatus === 'error') {
+      playReturnFeed(omeUrl, RETURN_FEED_STREAM);
     }
   };
 

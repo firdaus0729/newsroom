@@ -98,15 +98,6 @@ export async function sendBreakingNews(message) {
   return data;
 }
 
-export async function getStudioReturnFeed() {
-  const res = await fetch(`${API_BASE}/studio/return-feed`);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || 'Failed to load studio return feed info');
-  }
-  return data;
-}
-
 /** Upload a clip (video/audio). Optional onProgress(percent 0-100). Returns { id, file_name, ... } or throws. */
 export function uploadClip(file, onProgress) {
   const token = getToken();

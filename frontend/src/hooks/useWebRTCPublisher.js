@@ -48,6 +48,8 @@ export function useWebRTCPublisher() {
   const statsIntervalRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const lastConnectParamsRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
 
   const stopPreview = useCallback(() => {
     if (mediaStreamRef.current) {
@@ -117,7 +119,15 @@ export function useWebRTCPublisher() {
 
   const performConnect = useCallback(
     async (params) => {
-      const { serverUrl, streamName, videoDeviceId, audioDeviceId, bitrate = 'medium', onLive } = params || {};
+      const {
+        serverUrl,
+        streamName,
+        videoDeviceId,
+        audioDeviceId,
+        bitrate = 'medium',
+        onLive,
+        onRecordingReady,
+      } = params || {};
       const wsUrl = buildWsUrl(serverUrl, streamName);
       if (!wsUrl) {
         setStatus('error');
@@ -269,6 +279,37 @@ if (e.candidate) {
             safeSetStatus('live', '');
             liveStartedAtRef.current = Date.now();
             if (typeof onLive === 'function') onLive();
+            // One MediaRecorder per live session (avoid duplicate on WebRTC reconnect)
+            if (
+              !(mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') &&
+              typeof MediaRecorder !== 'undefined' &&
+              mediaStreamRef.current
+            ) {
+              recordedChunksRef.current = [];
+              try {
+                const types = [
+                  'video/webm;codecs=vp9,opus',
+                  'video/webm;codecs=vp8,opus',
+                  'video/webm',
+                ];
+                let mime = '';
+                for (const t of types) {
+                  if (MediaRecorder.isTypeSupported(t)) {
+                    mime = t;
+                    break;
+                  }
+                }
+                if (!mime) mime = 'video/webm';
+                const mr = new MediaRecorder(mediaStreamRef.current, { mimeType: mime });
+                mr.ondataavailable = (e) => {
+                  if (e.data && e.data.size) recordedChunksRef.current.push(e.data);
+                };
+                mediaRecorderRef.current = mr;
+                mr.start(1000);
+              } catch (e) {
+                console.warn('MediaRecorder (live archive) failed:', e);
+              }
+            }
           } else if (msg.command === 'candidate') {
             if (msg.candidate) {
               try {
@@ -304,8 +345,16 @@ if (e.candidate) {
 
   const goLive = useCallback(
     (serverUrl, streamName, options = {}) => {
-      const { videoDeviceId, audioDeviceId, bitrate = 'medium', onLive } = options;
-      lastConnectParamsRef.current = { serverUrl, streamName, videoDeviceId, audioDeviceId, bitrate, onLive };
+      const { videoDeviceId, audioDeviceId, bitrate = 'medium', onLive, onRecordingReady } = options;
+      lastConnectParamsRef.current = {
+        serverUrl,
+        streamName,
+        videoDeviceId,
+        audioDeviceId,
+        bitrate,
+        onLive,
+        onRecordingReady,
+      };
       setStatus('connecting');
       setErrorMessage('');
       reconnectAttemptRef.current = 0;
@@ -314,11 +363,35 @@ if (e.candidate) {
     [performConnect]
   );
 
-  const stopStream = useCallback(() => {
+  const stopStream = useCallback(async () => {
     reconnectAttemptRef.current = MAX_RECONNECT_ATTEMPTS;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+    const mr = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    let blob = null;
+    if (mr && mr.state === 'recording') {
+      await new Promise((resolve) => {
+        mr.onstop = resolve;
+        mr.stop();
+      });
+      const chunks = recordedChunksRef.current;
+      recordedChunksRef.current = [];
+      blob = new Blob(chunks, { type: mr.mimeType || 'video/webm' });
+    } else if (mr && mr.state !== 'inactive') {
+      try {
+        mr.stop();
+      } catch (_) {}
+    }
+    const onRecordingReady = lastConnectParamsRef.current?.onRecordingReady;
+    if (blob && blob.size > 0 && typeof onRecordingReady === 'function') {
+      try {
+        await onRecordingReady(blob);
+      } catch (e) {
+        console.error('Live recording upload failed:', e);
+      }
     }
     closeConnection();
     setStatus('idle');

@@ -107,12 +107,22 @@ export default function Dashboard() {
   }, [startPreview]);
 
   const handleGoLive = () => {
-    goLive(omeUrl, streamName, { bitrate, onLive: api.streamStarted });
+    goLive(omeUrl, streamName, {
+      bitrate,
+      onLive: api.streamStarted,
+      /** Saves full live session to Uploaded Clips (browser MediaRecorder → POST /upload). */
+      onRecordingReady: async (blob) => {
+        if (!blob || blob.size < 1000) return;
+        const name = `live_${streamName}_${Date.now()}.webm`;
+        const file = new File([blob], name, { type: blob.type || 'video/webm' });
+        await api.uploadClip(file, () => {});
+      },
+    });
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     api.streamStopped();
-    stopStream();
+    await stopStream();
   };
 
   const handleSendAlert = async (e) => {

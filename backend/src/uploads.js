@@ -16,17 +16,30 @@ export function getMaxFileSizeBytes() {
   return MAX_FILE_SIZE * 1024 * 1024;
 }
 
+const VIDEO_AUDIO_EXTENSIONS = ['.webm', '.mp4', '.mov', '.m4a', '.ogg', '.ogv', '.oga', '.wav', '.mp3', '.mpeg', '.avi', '.mkv'];
+
 function isAllowedMime(mime) {
-  if (!mime) return false;
-  const lower = mime.toLowerCase();
-  const base = lower.split(';')[0]; // strip codec parameters like ';codecs=vp9,opus'
+  if (!mime || typeof mime !== 'string') return false;
+  const lower = mime.toLowerCase().trim();
+  const base = lower.split(';')[0].trim();
+  if (!base) return false;
   return ALLOWED_MIME_PREFIXES.some((p) => base.startsWith(p) || base === p);
+}
+
+function isAllowedByExtension(filename) {
+  if (!filename || typeof filename !== 'string') return false;
+  const lower = filename.toLowerCase();
+  return VIDEO_AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
 export function validateUploadFile(file) {
   if (!file || !file.originalname) return { ok: false, error: 'No file' };
   if (file.size > getMaxFileSizeBytes()) return { ok: false, error: `File too large (max ${MAX_FILE_SIZE} MB)` };
-  if (!isAllowedMime(file.mimetype)) return { ok: false, error: 'File type not allowed (use video or audio)' };
+  const mimeOk = isAllowedMime(file.mimetype);
+  const extOk = isAllowedByExtension(file.originalname);
+  if (!mimeOk && !extOk) {
+    return { ok: false, error: 'File type not allowed (use video or audio)' };
+  }
   return { ok: true };
 }
 

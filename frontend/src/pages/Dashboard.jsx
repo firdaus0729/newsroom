@@ -114,7 +114,7 @@ export default function Dashboard() {
       onRecordingReady: async (blob) => {
         if (!blob || blob.size < 1000) return;
         const name = `live_${streamName}_${Date.now()}.webm`;
-        const file = new File([blob], name, { type: blob.type || 'video/webm' });
+        const file = new File([blob], name, { type: 'video/webm' });
         await api.uploadClip(file, () => {});
       },
     });

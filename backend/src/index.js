@@ -169,6 +169,22 @@ app.post('/upload', authMiddleware, rateLimit({ windowMs: 60_000, max: 30 }), (r
   }
 });
 
+// Studio return feed info — used by reporter "Load return feed" button
+app.get('/studio/return-feed', (_req, res) => {
+  try {
+    const streamName = process.env.RETURN_FEED_STREAM || 'program';
+    const appName = 'live';
+    const webrtcPath = `/ome-ws/${appName}/${encodeURIComponent(streamName)}`;
+    return res.json({
+      stream_name: streamName,
+      app: appName,
+      webrtc_path: webrtcPath,
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // ----- Newsroom Dashboard (editor or admin login; role-based) -----
 app.post('/dashboard/login', async (req, res) => {
   const { email, password } = req.body || {};

@@ -9,8 +9,8 @@ import { editorAuthMiddleware, editorOrAdminMiddleware, editorLogin, createEdito
 import { adminAuthMiddleware, adminLogin } from './adminAuth.js';
 import * as dashboardApi from './dashboardApi.js';
 import { ensureDatabaseAndSchema } from './ensureDb.js';
-import { startAutoRecorder } from './autoRecorder.js';
 import { getUploadFilePath, ensureUploadsDir, UPLOADS_DIR, createUpload, validateUploadFile } from './uploads.js';
+import { startRecording, stopRecording } from './streamRecorder.js';
 import { isObjectStorageEnabled, getObjectStream } from './objectStorage.js';
 
 const app = express();
@@ -119,6 +119,10 @@ app.post('/streams/start', authMiddleware, rateLimit({ windowMs: 10_000, max: 5 
   const streamName = `reporter_${req.user.id}`;
   try {
     const session = await dashboardApi.startStreamSession(req.user.id, streamName);
+    // Fire-and-forget: start server-side recording of this reporter's stream
+    if (process.env.DISABLE_AUTO_RECORDING !== 'true') {
+      startRecording(req.user.id, streamName);
+    }
     return res.status(201).json(session);
   } catch (e) {
     if (e.code === 'MAX_STREAMS_REACHED' || e.message === 'MAX_STREAMS_REACHED') {
@@ -132,6 +136,9 @@ app.post('/streams/stop', authMiddleware, async (req, res) => {
   const streamName = `reporter_${req.user.id}`;
   try {
     const session = await dashboardApi.endStreamSession(req.user.id, streamName);
+    if (process.env.DISABLE_AUTO_RECORDING !== 'true') {
+      stopRecording(req.user.id, streamName).catch(() => {});
+    }
     return res.json(session || { message: 'No active session' });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -214,6 +221,10 @@ app.post('/dashboard/streams/stop', editorOrAdminMiddleware, async (req, res) =>
   }
   try {
     const session = await dashboardApi.endStreamSessionByEditor(reporterId);
+    if (process.env.DISABLE_AUTO_RECORDING !== 'true') {
+      const streamName = `reporter_${reporterId}`;
+      stopRecording(reporterId, streamName).catch(() => {});
+    }
     return res.json(session || { message: 'No active session for that reporter' });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -469,10 +480,6 @@ async function start() {
   try {
     await listen(port);
     console.log(`Reporter Portal API listening on http://localhost:${port}`);
-    // Start background auto-recorder for reporter live streams (optional)
-    if (process.env.AUTO_RECORD_STREAMS !== 'false') {
-      startAutoRecorder();
-    }
   } catch (e) {
     console.error(e.message);
     process.exit(1);

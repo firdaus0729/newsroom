@@ -9,6 +9,7 @@ import { editorAuthMiddleware, editorOrAdminMiddleware, editorLogin, createEdito
 import { adminAuthMiddleware, adminLogin } from './adminAuth.js';
 import * as dashboardApi from './dashboardApi.js';
 import { ensureDatabaseAndSchema } from './ensureDb.js';
+import { startAutoRecorder } from './autoRecorder.js';
 import { getUploadFilePath, ensureUploadsDir, UPLOADS_DIR, createUpload, validateUploadFile } from './uploads.js';
 import { isObjectStorageEnabled, getObjectStream } from './objectStorage.js';
 
@@ -468,6 +469,10 @@ async function start() {
   try {
     await listen(port);
     console.log(`Reporter Portal API listening on http://localhost:${port}`);
+    // Start background auto-recorder for reporter live streams (optional)
+    if (process.env.AUTO_RECORD_STREAMS !== 'false') {
+      startAutoRecorder();
+    }
   } catch (e) {
     console.error(e.message);
     process.exit(1);

@@ -18,7 +18,9 @@ export function getMaxFileSizeBytes() {
 
 function isAllowedMime(mime) {
   if (!mime) return false;
-  return ALLOWED_MIME_PREFIXES.some((p) => mime.toLowerCase().startsWith(p) || mime === p);
+  const lower = mime.toLowerCase();
+  const base = lower.split(';')[0]; // strip codec parameters like ';codecs=vp9,opus'
+  return ALLOWED_MIME_PREFIXES.some((p) => base.startsWith(p) || base === p);
 }
 
 export function validateUploadFile(file) {

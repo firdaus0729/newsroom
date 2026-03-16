@@ -85,13 +85,19 @@ app.post('/signup', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) =
   });
 });
 
-// GET /me — current reporter (requires Authorization: Bearer <token>)
+// GET /me — current reporter + studio return feed (same RTMP source as editor dashboard)
 app.get('/me', authMiddleware, async (req, res) => {
   const reporter = await getReporterById(req.user.id);
   if (!reporter) {
     return res.status(404).json({ error: 'Reporter not found' });
   }
-  return res.json(reporter);
+  const streamName = process.env.RETURN_FEED_STREAM || 'program';
+  const rtmpBase = (process.env.RTMP_BASE_URL || 'rtmp://localhost/live').replace(/\/*$/, '');
+  const studio_return_feed = {
+    stream_name: streamName,
+    rtmp_url: `${rtmpBase}/${streamName}_rtmp`,
+  };
+  return res.json({ ...reporter, studio_return_feed });
 });
 
 // POST /logout — client discards token

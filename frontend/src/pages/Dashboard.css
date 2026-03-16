@@ -317,10 +317,6 @@
 }
 
 .return-feed-unmute {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   font-weight: 600;
@@ -333,6 +329,18 @@
 
 .return-feed-unmute:hover {
   background: rgba(0, 0, 0, 0.9);
+}
+
+.return-feed-unmute-group {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100% - 1rem);
 }
 
 .upload-section {

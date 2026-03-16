@@ -32,16 +32,16 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(async (email, password) => {
     const data = await api.login(email, password);
     api.setToken(data.token);
-    setReporter(data.reporter);
+    await loadUser();
     return data.reporter;
-  }, []);
+  }, [loadUser]);
 
   const signUp = useCallback(async (name, email, password) => {
     const data = await api.signup(name, email, password);
     api.setToken(data.token);
-    setReporter(data.reporter);
+    await loadUser();
     return data.reporter;
-  }, []);
+  }, [loadUser]);
 
   const signOut = useCallback(() => {
     api.logout();

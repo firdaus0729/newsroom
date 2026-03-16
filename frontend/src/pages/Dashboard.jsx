@@ -129,9 +129,15 @@ export default function Dashboard() {
   };
 
   const handleLoadReturnFeed = () => {
-    if (playerStatus === 'idle' || playerStatus === 'error') {
-      playReturnFeed(omeUrl, RETURN_FEED_STREAM);
-    }
+    if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
+    const name = reporter?.studio_return_feed?.stream_name || RETURN_FEED_STREAM;
+    playReturnFeed(omeUrl, name);
+  };
+
+  const handleCopyRtmp = () => {
+    const url = reporter?.studio_return_feed?.rtmp_url || '';
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => alert('RTMP URL copied')).catch(() => {});
   };
 
   async function handleUploadClip(e) {
@@ -321,13 +327,23 @@ export default function Dashboard() {
               muted={false}
             />
             {audioBlocked && (
-              <button
-                type="button"
-                className="return-feed-unmute"
-                onClick={tryUnmute}
-              >
-                Tap to play audio
-              </button>
+              <div className="return-feed-unmute-group">
+                <button
+                  type="button"
+                  className="return-feed-unmute"
+                  onClick={tryUnmute}
+                >
+                  Tap to play audio
+                </button>
+                <button
+                  type="button"
+                  className="return-feed-unmute"
+                  onClick={handleCopyRtmp}
+                  title={returnFeedInfo?.rtmp_url || ''}
+                >
+                  {rtmpCopied ? 'Copied!' : 'Tap to get RTMP'}
+                </button>
+              </div>
             )}
             <div className="return-feed-placeholder">
               {playerStatus === 'idle' && 'Click "Load return feed" when the studio stream is ready'}

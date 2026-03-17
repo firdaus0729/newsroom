@@ -258,6 +258,37 @@
   color: var(--muted);
 }
 
+.return-feed-config {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  max-width: 520px;
+}
+
+.return-feed-config-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.return-feed-config-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.return-feed-config-input::placeholder {
+  color: var(--muted);
+}
+
+.return-feed-config-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .return-feed-actions {
   margin-bottom: 0.5rem;
 }

@@ -312,15 +312,17 @@ export default function Dashboard() {
               >
                 <span className="btn-icon-label">{isMuted ? 'Unmute' : 'Mute'}</span>
               </button>
-              <button
-                type="button"
-                className="btn-icon"
-                onClick={handleCopyReporterRtmp}
-                title="Copy your RTMP URL"
-                aria-label="Copy your RTMP URL"
-              >
-                <span className="btn-icon-label">Copy RTMP URL</span>
-              </button>
+              {(pubStatus === 'live' || pubStatus === 'reconnecting') && (
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={handleCopyReporterRtmp}
+                  title="Copy your RTMP URL"
+                  aria-label="Copy your RTMP URL"
+                >
+                  <span className="btn-icon-label">Copy RTMP URL</span>
+                </button>
+              )}
             </div>
           </div>
 

@@ -19,11 +19,14 @@ function streamNameFromRtmpUrl(input) {
   try {
     const u = new URL(normalized);
     const parts = (u.pathname || '').split('/').filter(Boolean);
-    return parts.length ? decodeURIComponent(parts[parts.length - 1]) : null;
+    const last = parts.length ? decodeURIComponent(parts[parts.length - 1]) : null;
+    // Common convention: RTMP outputs are named like reporter_3_rtmp, but WebRTC play expects reporter_3
+    return last && last.endsWith('_rtmp') ? last.slice(0, -5) : last;
   } catch (_) {
     // Fallback: best-effort split
     const parts = raw.split('/').filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : null;
+    const last = parts.length ? parts[parts.length - 1] : null;
+    return last && last.endsWith('_rtmp') ? last.slice(0, -5) : last;
   }
 }
 
@@ -353,20 +356,20 @@ export default function Dashboard() {
           <h2 className="return-feed-title">Studio return feed</h2>
           <div className="return-feed-config">
             <label className="return-feed-config-label" htmlFor="return-feed-rtmp">
-              Official live RTMP URL (Wirecast output)
+              Return feed RTMP URL (program or reporter)
             </label>
             <input
               id="return-feed-rtmp"
               className="return-feed-config-input"
               value={returnFeedRtmpUrl}
               onChange={(e) => handleSaveReturnFeedRtmp(e.target.value)}
-              placeholder="rtmp://SERVER_IP/live/program"
+              placeholder="rtmp://SERVER_IP/live/program  (or .../reporter_3_rtmp)"
               inputMode="url"
               autoComplete="off"
               spellCheck={false}
             />
             <div className="return-feed-config-hint">
-              We will play the stream name from this URL via WebRTC (low latency).
+              We will play the stream name from this URL via WebRTC (low latency). If the URL ends with `_rtmp`, we auto-play the base name (e.g. `reporter_3_rtmp` → `reporter_3`).
             </div>
           </div>
           <div className="return-feed-actions">

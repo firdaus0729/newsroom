@@ -185,6 +185,20 @@ export default function Dashboard() {
     navigator.clipboard.writeText(url).then(() => alert('RTMP URL copied')).catch(() => {});
   };
 
+  const handleCopyReporterRtmp = () => {
+    if (!reporter) return;
+    let base = (STUDIO_RTMP_BASE || '').trim();
+    if (!base) {
+      if (typeof window === 'undefined') return;
+      const host = window.location.hostname || 'localhost';
+      base = `rtmp://${host}/live`;
+    }
+    base = base.replace(/\/*$/, '');
+    const reporterStream = `reporter_${reporter.id}`;
+    const url = `${base}/${reporterStream}_rtmp`;
+    navigator.clipboard.writeText(url).then(() => alert('Your RTMP URL copied')).catch(() => {});
+  };
+
   const handleSaveReturnFeedRtmp = (value) => {
     setReturnFeedRtmpUrl(value);
     try {
@@ -297,6 +311,15 @@ export default function Dashboard() {
                 aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
               >
                 <span className="btn-icon-label">{isMuted ? 'Unmute' : 'Mute'}</span>
+              </button>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={handleCopyReporterRtmp}
+                title="Copy your RTMP URL"
+                aria-label="Copy your RTMP URL"
+              >
+                <span className="btn-icon-label">Copy RTMP URL</span>
               </button>
             </div>
           </div>

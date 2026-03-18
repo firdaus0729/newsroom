@@ -187,7 +187,7 @@
 			<!-- Settings for applications -->
 			<Applications>
 				<Application>
-					<Name>app</Name>
+					<Name>live</Name>
 					<!-- Application type (live/vod) -->
 					<Type>live</Type>
 					<OutputProfiles>

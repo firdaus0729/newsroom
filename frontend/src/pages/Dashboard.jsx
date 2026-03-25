@@ -8,7 +8,7 @@ import './Dashboard.css';
 
 const OME_WS_URL = import.meta.env.VITE_OME_WS_URL || '';
 const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
-const STUDIO_RTMP_BASE = import.meta.env.VITE_RTMP_BASE_URL || '';
+const STUDIO_SRT_BASE = import.meta.env.VITE_SRT_BASE_URL || '';
 
 function getDefaultOmeUrl() {
   if (OME_WS_URL) {
@@ -147,30 +147,30 @@ export default function Dashboard() {
     setCurrentReturnFeed(RETURN_FEED_STREAM);
   };
 
-  const handleCopyRtmp = () => {
-    let base = (STUDIO_RTMP_BASE || '').trim();
+  const handleCopySrt = () => {
+    let base = (STUDIO_SRT_BASE || '').trim();
     if (!base) {
       if (typeof window === 'undefined') return;
       const host = window.location.hostname || 'localhost';
-      base = `rtmp://${host}/live`;
+      base = `srt://${host}:9999/live`;
     }
     base = base.replace(/\/*$/, '');
-    const url = `${base}/${RETURN_FEED_STREAM}_rtmp`;
-    navigator.clipboard.writeText(url).then(() => alert('RTMP URL copied')).catch(() => {});
+    const url = `${base}/${RETURN_FEED_STREAM}`;
+    navigator.clipboard.writeText(url).then(() => alert('SRT URL copied')).catch(() => {});
   };
 
-  const handleCopyReporterRtmp = () => {
+  const handleCopyReporterSrt = () => {
     if (!reporter) return;
-    let base = (STUDIO_RTMP_BASE || '').trim();
+    let base = (STUDIO_SRT_BASE || '').trim();
     if (!base) {
       if (typeof window === 'undefined') return;
       const host = window.location.hostname || 'localhost';
-      base = `rtmp://${host}/live`;
+      base = `srt://${host}:9999/live`;
     }
     base = base.replace(/\/*$/, '');
     const reporterStream = `reporter_${reporter.id}`;
-    const url = `${base}/${reporterStream}_rtmp`;
-    navigator.clipboard.writeText(url).then(() => alert('Your RTMP URL copied')).catch(() => {});
+    const url = `${base}/${reporterStream}`;
+    navigator.clipboard.writeText(url).then(() => alert('Your SRT URL copied')).catch(() => {});
   };
 
 
@@ -283,11 +283,11 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="btn-icon"
-                  onClick={handleCopyReporterRtmp}
-                  title="Copy your RTMP URL"
-                  aria-label="Copy your RTMP URL"
+                  onClick={handleCopyReporterSrt}
+                  title="Copy your SRT URL"
+                  aria-label="Copy your SRT URL"
                 >
-                  <span className="btn-icon-label">Copy RTMP URL</span>
+                  <span className="btn-icon-label">Copy SRT URL</span>
                 </button>
               )}
             </div>
@@ -390,9 +390,9 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="return-feed-unmute"
-                  onClick={handleCopyRtmp}
+                  onClick={handleCopySrt}
                 >
-                  Tap to get RTMP
+                  Tap to get SRT
                 </button>
               </div>
             )}

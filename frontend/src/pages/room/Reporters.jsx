@@ -81,8 +81,8 @@ export default function Reporters() {
     playPreview(base, streamName);
   }
 
-  function handleCopyRtmp(rtmpUrl) {
-    navigator.clipboard.writeText(rtmpUrl || '').then(() => alert('RTMP URL copied')).catch(() => {});
+  function handleCopySrt(srtUrl) {
+    navigator.clipboard.writeText(srtUrl || '').then(() => alert('SRT URL copied')).catch(() => {});
   }
 
   if (loading) return <div className="page-loading">Loading…</div>;
@@ -117,7 +117,7 @@ export default function Reporters() {
                     {r.status === 'live' && (
                       <>
                         <button type="button" className="btn-sm" onClick={() => handleViewStream(r.webrtc_url, r.stream_name)}>View Stream</button>
-                        <button type="button" className="btn-sm" onClick={() => handleCopyRtmp(r.rtmp_url)}>Copy RTMP URL</button>
+                        <button type="button" className="btn-sm" onClick={() => handleCopySrt(r.srt_url)}>Copy SRT URL</button>
                         <button type="button" className="btn-sm btn-stop-stream" onClick={() => handleStopStream(r.id)} disabled={stoppingId === r.id}>
                           {stoppingId === r.id ? 'Stopping…' : 'Stop Stream'}
                         </button>

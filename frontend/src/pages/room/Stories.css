@@ -21,8 +21,8 @@
 
 .stories-list,
 .story-detail {
-  background: #fff;
-  border: 1px solid #e8e8e8;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
   overflow: auto;
@@ -32,8 +32,8 @@
   display: block;
   width: 100%;
   text-align: left;
-  border: 1px solid #ececec;
-  background: #fafafa;
+  border: 1px solid var(--border);
+  background: var(--surface2);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 8px;
@@ -42,7 +42,7 @@
 
 .story-row.active {
   border-color: #2563eb;
-  background: #eff6ff;
+  background: var(--surface2);
 }
 
 .story-title {
@@ -52,7 +52,7 @@
 
 .story-meta,
 .muted {
-  color: #666;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -60,10 +60,11 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 8px;
+  background: var(--surface2);
 }
 
 .item-actions {
@@ -72,7 +73,7 @@
 }
 
 .error-mini {
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 12px;
   margin-top: 4px;
 }

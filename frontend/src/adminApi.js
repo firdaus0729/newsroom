@@ -81,3 +81,10 @@ export async function deleteEditor(id) {
   if (!res.ok) throw new Error(data.error || 'Failed to delete editor');
   return data;
 }
+
+export async function getQueueHealth() {
+  const res = await fetch(`${API_BASE}/api/jobs/queue-health`, { headers: adminAuthHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to load queue health');
+  return data;
+}

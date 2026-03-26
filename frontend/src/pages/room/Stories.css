@@ -1,0 +1,84 @@
+.stories-page h1 {
+  margin: 0 0 14px;
+}
+
+.stories-filter {
+  margin-bottom: 12px;
+}
+
+.stories-filter label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stories-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: 560px;
+}
+
+.stories-list,
+.story-detail {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.story-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #ececec;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.story-row.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.story-title {
+  display: block;
+  font-weight: 600;
+}
+
+.story-meta,
+.muted {
+  color: #666;
+  font-size: 13px;
+}
+
+.list .item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.error-mini {
+  color: #b91c1c;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+@media (max-width: 980px) {
+  .stories-layout {
+    grid-template-columns: 1fr;
+  }
+}

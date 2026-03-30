@@ -179,6 +179,9 @@ if (e.candidate) {
       };
 
       const scheduleReconnect = () => {
+        // Prevent multiple reconnect timers being scheduled concurrently.
+        // Both `pc.onconnectionstatechange` and `ws.onclose` can trigger reconnect.
+        if (reconnectTimeoutRef.current) return;
         if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
           setStatus('error');
           setErrorMessage('Reconnection failed after ' + MAX_RECONNECT_ATTEMPTS + ' attempts');
@@ -190,6 +193,7 @@ if (e.candidate) {
         setStatus('reconnecting');
         setErrorMessage('Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + reconnectAttemptRef.current + ')');
         reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = null; // timer consumed
           if (wsRef.current) try { wsRef.current.close(); } catch (_) {}
           if (pcRef.current) try { pcRef.current.close(); } catch (_) {}
           wsRef.current = null;

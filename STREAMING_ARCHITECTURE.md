@@ -2,9 +2,9 @@
 
 ## Overview
 
-- **OvenMediaEngine (OME)**: WebRTC ingest from reporters, transcoding, RTMP push, optional recording, REST API for stats.
+- **OvenMediaEngine (OME)**: WebRTC ingest from reporters, SRT provider output, optional recording, REST API for stats.
 - **Coturn**: STUN/TURN server for NAT traversal so mobile reporters can connect from cellular/Wi‑Fi behind NAT/firewalls.
-- **nginx-rtmp**: RTMP app for vMix/OBS (studio).
+- **SRT clients (Wirecast/OBS)**: Pull reporter streams from OME SRT provider.
 - **Web**: Static publisher/player and Reporter Portal assets.
 
 ## 1. STUN/TURN (Coturn)
@@ -109,7 +109,6 @@ curl -u "ome-admin:changeme" -X POST "http://localhost:9999/v1/vhosts/*/apps/liv
 | Port        | Protocol | Service     | Purpose                    |
 |------------|----------|-------------|----------------------------|
 | 80, 443    | TCP      | web         | HTTP/HTTPS                 |
-| 1935       | TCP      | nginx-rtmp  | RTMP                       |
 | 3333, 3334 | TCP      | OME         | WebRTC signalling          |
 | 3478       | UDP/TCP  | Coturn      | STUN/TURN                  |
 | 3479       | TCP      | OME         | OME embedded TURN          |
@@ -123,7 +122,7 @@ curl -u "ome-admin:changeme" -X POST "http://localhost:9999/v1/vhosts/*/apps/liv
 
 - **coturn**: STUN/TURN (3478, 49152–49251).
 - **ovenmediaengine**: Ingest, transcoding, push, recording, API (3333, 3334, 3479, 9999, 10000–10019).
-- **rtmp**: nginx-rtmp (1935).
+- **SRT**: OME SRT provider on 9999.
 - **web**: Static + Reporter Portal (80, 443).
 - **nginx-proxy** (optional): Reverse proxy in front of web + OME (example in `nginx-proxy/`).
 

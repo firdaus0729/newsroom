@@ -8,6 +8,7 @@ import './Dashboard.css';
 
 const OME_WS_URL = import.meta.env.VITE_OME_WS_URL || '';
 const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
+const SRT_BASE_URL = import.meta.env.VITE_SRT_BASE_URL || 'srt://localhost:9999/live';
 
 function getDefaultOmeUrl() {
   if (OME_WS_URL) {
@@ -142,6 +143,13 @@ export default function Dashboard() {
   const handleLoadReturnFeed = () => {
     if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
     playReturnFeed(omeUrl, RETURN_FEED_STREAM);
+  };
+
+  const handleCopySrt = () => {
+    const srtUrl = `${SRT_BASE_URL.replace(/\/+$/, '')}/${streamName}_srt`;
+    navigator.clipboard.writeText(srtUrl).then(() => {
+      setAlertStatus({ type: 'success', text: 'SRT URL copied for external ingest.' });
+    }).catch(() => {});
   };
 
   async function handleUploadClip(e) {
@@ -342,9 +350,9 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="return-feed-unmute"
-                  onClick={handleCopyRtmp}
+                  onClick={handleCopySrt}
                 >
-                  Tap to get RTMP
+                  Tap to copy SRT URL
                 </button>
               </div>
             )}

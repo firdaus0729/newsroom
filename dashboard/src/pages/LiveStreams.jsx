@@ -67,8 +67,8 @@ export default function LiveStreams() {
     playPreview(base, streamName);
   }
 
-  function handleCopyRtmp(rtmpUrl) {
-    navigator.clipboard.writeText(rtmpUrl || '').then(() => alert('RTMP URL copied')).catch(() => {});
+  function handleCopySrt(srtUrl) {
+    navigator.clipboard.writeText(srtUrl || '').then(() => alert('SRT URL copied')).catch(() => {});
   }
 
   if (loading) return <div className="page-loading">Loading…</div>;
@@ -97,12 +97,7 @@ export default function LiveStreams() {
                     <td>{formatDuration(r.started_at)}</td>
                     <td>
                       <button type="button" className="btn-sm" onClick={() => handleViewStream(r.webrtc_url, r.stream_name)}>View Stream</button>
-                      <button type="button" className="btn-sm" onClick={() => handleCopyRtmp(r.rtmp_url)}>Copy RTMP URL</button>
-                      {r.srt_url && (
-                        <button type="button" className="btn-sm" onClick={() => navigator.clipboard.writeText(r.srt_url || '').then(() => alert('SRT URL copied')).catch(() => {})}>
-                          Copy SRT URL
-                        </button>
-                      )}
+                      <button type="button" className="btn-sm" onClick={() => handleCopySrt(r.srt_url)}>Copy SRT URL</button>
                     </td>
                   </tr>
                 ))}

@@ -237,7 +237,7 @@ app.get('/dashboard/reporters', editorOrAdminMiddleware, async (_, res) => {
       status: liveIds.has(r.id) ? 'live' : (r.status === 'live' ? 'live' : 'offline'),
       stream_name: live.find((l) => l.id === r.id)?.stream_name,
       started_at: live.find((l) => l.id === r.id)?.started_at,
-      rtmp_url: live.find((l) => l.id === r.id)?.rtmp_url,
+      srt_url: live.find((l) => l.id === r.id)?.srt_url,
       webrtc_url: live.find((l) => l.id === r.id)?.webrtc_url,
     }));
     return res.json(withStatus);

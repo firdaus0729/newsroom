@@ -8,27 +8,6 @@ import './Dashboard.css';
 
 const OME_WS_URL = import.meta.env.VITE_OME_WS_URL || '';
 const RETURN_FEED_STREAM = import.meta.env.VITE_RETURN_FEED_STREAM || 'program';
-const STUDIO_RTMP_BASE = import.meta.env.VITE_RTMP_BASE_URL || '';
-const RETURN_FEED_RTMP_KEY = 'return_feed_rtmp_url';
-
-function streamNameFromRtmpUrl(input) {
-  const raw = (input || '').trim();
-  if (!raw) return null;
-  // URL() doesn't support rtmp://, so temporarily map it to http:// for parsing.
-  const normalized = raw.replace(/^rtmps?:\/\//i, 'http://');
-  try {
-    const u = new URL(normalized);
-    const parts = (u.pathname || '').split('/').filter(Boolean);
-    const last = parts.length ? decodeURIComponent(parts[parts.length - 1]) : null;
-    // Common convention: RTMP outputs are named like reporter_3_rtmp, but WebRTC play expects reporter_3
-    return last && last.endsWith('_rtmp') ? last.slice(0, -5) : last;
-  } catch (_) {
-    // Fallback: best-effort split
-    const parts = raw.split('/').filter(Boolean);
-    const last = parts.length ? parts[parts.length - 1] : null;
-    return last && last.endsWith('_rtmp') ? last.slice(0, -5) : last;
-  }
-}
 
 function getDefaultOmeUrl() {
   if (OME_WS_URL) {
@@ -63,13 +42,6 @@ export default function Dashboard() {
   const previewVideoRef = useRef(null);
   const returnFeedVideoRef = useRef(null);
   const [bitrate, setBitrate] = useState(DEFAULT_BITRATE);
-  const [returnFeedRtmpUrl, setReturnFeedRtmpUrl] = useState(() => {
-    try {
-      return localStorage.getItem(RETURN_FEED_RTMP_KEY) || '';
-    } catch (_) {
-      return '';
-    }
-  });
 
   const {
     status: pubStatus,
@@ -169,43 +141,7 @@ export default function Dashboard() {
 
   const handleLoadReturnFeed = () => {
     if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
-    const fromRtmp = streamNameFromRtmpUrl(returnFeedRtmpUrl);
-    const name = fromRtmp || RETURN_FEED_STREAM;
-    playReturnFeed(omeUrl, name);
-  };
-
-  const handleCopyRtmp = () => {
-    let base = (STUDIO_RTMP_BASE || '').trim();
-    if (!base) {
-      if (typeof window === 'undefined') return;
-      const host = window.location.hostname || 'localhost';
-      base = `rtmp://${host}/live`;
-    }
-    base = base.replace(/\/*$/, '');
-    const url = `${base}/${RETURN_FEED_STREAM}_rtmp`;
-    navigator.clipboard.writeText(url).then(() => alert('RTMP URL copied')).catch(() => {});
-  };
-
-  const handleCopyReporterRtmp = () => {
-    if (!reporter) return;
-    let base = (STUDIO_RTMP_BASE || '').trim();
-    if (!base) {
-      if (typeof window === 'undefined') return;
-      const host = window.location.hostname || 'localhost';
-      base = `rtmp://${host}/live`;
-    }
-    base = base.replace(/\/*$/, '');
-    const reporterStream = `reporter_${reporter.id}`;
-    const url = `${base}/${reporterStream}_rtmp`;
-    navigator.clipboard.writeText(url).then(() => alert('Your RTMP URL copied')).catch(() => {});
-  };
-
-  const handleSaveReturnFeedRtmp = (value) => {
-    setReturnFeedRtmpUrl(value);
-    try {
-      if (value && value.trim()) localStorage.setItem(RETURN_FEED_RTMP_KEY, value);
-      else localStorage.removeItem(RETURN_FEED_RTMP_KEY);
-    } catch (_) {}
+    playReturnFeed(omeUrl, RETURN_FEED_STREAM);
   };
 
   async function handleUploadClip(e) {
@@ -379,25 +315,7 @@ export default function Dashboard() {
         </section>
 
         <section className="return-feed-section">
-          <h2 className="return-feed-title">Studio return feed</h2>
-          <div className="return-feed-config">
-            <label className="return-feed-config-label" htmlFor="return-feed-rtmp">
-              Return feed RTMP URL (program or reporter)
-            </label>
-            <input
-              id="return-feed-rtmp"
-              className="return-feed-config-input"
-              value={returnFeedRtmpUrl}
-              onChange={(e) => handleSaveReturnFeedRtmp(e.target.value)}
-              placeholder="rtmp://SERVER_IP/live/program  (or .../reporter_3_rtmp)"
-              inputMode="url"
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <div className="return-feed-config-hint">
-              We will play the stream name from this URL via WebRTC (low latency). If the URL ends with `_rtmp`, we auto-play the base name (e.g. `reporter_3_rtmp` → `reporter_3`).
-            </div>
-          </div>
+          <h2 className="return-feed-title">Studio return feed ({RETURN_FEED_STREAM})</h2>
           <div className="return-feed-actions">
             {(playerStatus === 'idle' || playerStatus === 'error') && (
               <button

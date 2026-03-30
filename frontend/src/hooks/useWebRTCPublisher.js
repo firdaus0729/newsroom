@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-// OME default application name is 'app' in the stock Server.xml, and the WebRTC publisher expects the path /app/{streamName} by default. This can be customized in OME's Server.xml with the <WebRTCAppName> element, but we'll assume 'app' for now.
+// OME default application name is 'app' in the stock Server.xml
 const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;

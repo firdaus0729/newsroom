@@ -17,7 +17,7 @@ function getOmeWsUrl() {
   }
   if (typeof window === 'undefined') return 'ws://localhost:3333';
   const { protocol, hostname } = window.location;
-  if (protocol === 'https:') return `wss://${hostname}/ome-ws`;
+  if (protocol === 'https:') return `wss://${hostname}:3334`;
   return `ws://${hostname}:3333`;
 }
 const OME_WS = getOmeWsUrl();

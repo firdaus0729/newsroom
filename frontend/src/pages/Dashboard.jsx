@@ -24,9 +24,10 @@ function getDefaultOmeUrl() {
   }
   if (typeof window === 'undefined') return 'ws://localhost:3333';
   const { protocol, hostname } = window.location;
-  // When on HTTPS, use same-origin path /ome-ws so Nginx can proxy to OME (no port 3333 exposed)
+  // Prefer direct OME TLS signalling port to avoid depending on Nginx /ome-ws proxy.
+  // Nginx /ome-ws can be used if ports are locked down, but Wirecast/clients may break if proxy is misconfigured.
   if (protocol === 'https:') {
-    return `${protocol}//${hostname}/ome-ws`;
+    return `${protocol}//${hostname}:3334`;
   }
   return `ws://${hostname}:3333`;
 }

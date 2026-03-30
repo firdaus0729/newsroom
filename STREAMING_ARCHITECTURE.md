@@ -114,7 +114,7 @@ curl -u "ome-admin:changeme" -X POST "http://localhost:9999/v1/vhosts/*/apps/liv
 | 3478       | UDP/TCP  | Coturn      | STUN/TURN                  |
 | 3479       | TCP      | OME         | OME embedded TURN          |
 | 49152–49251| UDP      | Coturn      | TURN relay                 |
-| 9999       | UDP/TCP | OME         | SRT ingest + REST API (stats, recording)|
+| 9999       | TCP      | OME         | REST API (stats, recording)|
 | 10000–10019| UDP      | OME         | WebRTC ICE (20 publishers) |
 
 ---

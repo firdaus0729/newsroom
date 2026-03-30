@@ -52,7 +52,6 @@ sudo ufw allow 3478/tcp
 sudo ufw allow 3478/udp
 sudo ufw allow 3479/tcp
 sudo ufw allow 9999/tcp
-sudo ufw allow 9999/udp
 sudo ufw allow 49152:49251/udp
 sudo ufw allow 10000:10019/udp
 sudo ufw enable

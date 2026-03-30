@@ -40,10 +40,7 @@ services:
       - "3333:3333"      # WebRTC signalling (HTTP)
       - "3334:3334"      # WebRTC signalling (HTTPS)
       - "3479:3479"      # OME embedded TURN (Coturn uses 3478)
-      # OME REST API (stats, recording) uses TCP on 9999
-      - "9999:9999/tcp"
-      # OME SRT ingest uses UDP on 9999 (required for SRT callers like Wirecast/OBS)
-      - "9999:9999/udp"
+      - "9999:9999"      # OME REST API (stats, recording)
       - "10000-10019:10000-10019/udp"  # WebRTC ICE (20 publishers)
     networks:
       - streamnet

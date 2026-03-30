@@ -19,6 +19,7 @@ function buildWsUrl(serverUrl, streamName) {
 
 function buildServerCandidates(serverUrl) {
   const candidates = [];
+
   const add = (v) => {
     if (!v) return;
     const s = String(v).trim();
@@ -30,12 +31,21 @@ function buildServerCandidates(serverUrl) {
 
   try {
     const u = new URL(serverUrl);
-    // If we were using the nginx proxy path /ome-ws, fall back to direct OME TLS signalling.
-    if (u.pathname.includes('/ome-ws')) {
-      // OME TLS signalling is mapped to 3334 in docker-compose.
-      if (u.protocol === 'https:') add(`https://${u.hostname}:3334`);
-      // Also try plain websocket port in case you're on HTTP.
-      if (u.protocol === 'http:') add(`http://${u.hostname}:3333`);
+    const host = u.hostname;
+    const hasOmeProxyPath = u.pathname?.includes('/ome-ws');
+    const isHttpsPage = u.protocol === 'https:';
+
+    // Always try the direct OME TLS signalling port (3334).
+    // This matches OME's <TLSPort>${env:OME_WEBRTC_SIGNALLING_TLS_PORT:3334}</TLSPort>.
+    add(`https://${host}:3334`);
+
+    // Also try direct plain WS (3333). Even if the page is HTTPS,
+    // the signalling port 3333 is typically plain ws:// in the container.
+    add(`http://${host}:3333`);
+
+    // If we are using /ome-ws proxy (or the site is HTTPS), include the proxy path too.
+    if (hasOmeProxyPath || isHttpsPage) {
+      add(`https://${host}/ome-ws`);
     }
   } catch {
     // ignore parse errors, keep original candidate only

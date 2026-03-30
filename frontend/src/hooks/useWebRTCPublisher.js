@@ -2,17 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-// OME applications name (must match OME config). We use "live" for RTMP ingest (/live/<stream>)
-const APP = 'live';
-=======
 // OME default application name is 'app' in the stock Server.xml
-=======
-// OME default application name is 'app' in the stock Server.xml, and the WebRTC publisher expects the path /app/{streamName} by default. This can be customized in OME's Server.xml with the <WebRTCAppName> element, but we'll assume 'app' for now.
->>>>>>> 61c9949ac9d500d85fe41c8c2683848134f4fb34
 const APP = 'app';
->>>>>>> 00c4276e4adea6b9a09548f5d80f20a4ec066bfc
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
 const STATS_INTERVAL_MS = 2000;
@@ -227,9 +218,6 @@ if (e.candidate) {
       };
 
       const scheduleReconnect = () => {
-        // Prevent multiple reconnect timers being scheduled concurrently.
-        // Both `pc.onconnectionstatechange` and `ws.onclose` can trigger reconnect.
-        if (reconnectTimeoutRef.current) return;
         if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
           setStatus('error');
           setErrorMessage('Reconnection failed after ' + MAX_RECONNECT_ATTEMPTS + ' attempts');
@@ -254,7 +242,6 @@ if (e.candidate) {
         setStatus('reconnecting');
         setErrorMessage('Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + reconnectAttemptRef.current + ')');
         reconnectTimeoutRef.current = setTimeout(() => {
-          reconnectTimeoutRef.current = null; // timer consumed
           if (wsRef.current) try { wsRef.current.close(); } catch (_) {}
           if (pcRef.current) try { pcRef.current.close(); } catch (_) {}
           wsRef.current = null;

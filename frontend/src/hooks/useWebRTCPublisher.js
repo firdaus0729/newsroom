@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-// OME application name (must match OME config). We use "live" for RTMP ingest (/live/<stream>)
+// OME applications name (must match OME config). We use "live" for RTMP ingest (/live/<stream>)
 const APP = 'live';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
@@ -218,6 +218,9 @@ if (e.candidate) {
       };
 
       const scheduleReconnect = () => {
+        // Prevent multiple reconnect timers being scheduled concurrently.
+        // Both `pc.onconnectionstatechange` and `ws.onclose` can trigger reconnect.
+        if (reconnectTimeoutRef.current) return;
         if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
           setStatus('error');
           setErrorMessage('Reconnection failed after ' + MAX_RECONNECT_ATTEMPTS + ' attempts');
@@ -242,6 +245,7 @@ if (e.candidate) {
         setStatus('reconnecting');
         setErrorMessage('Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + reconnectAttemptRef.current + ')');
         reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = null; // timer consumed
           if (wsRef.current) try { wsRef.current.close(); } catch (_) {}
           if (pcRef.current) try { pcRef.current.close(); } catch (_) {}
           wsRef.current = null;

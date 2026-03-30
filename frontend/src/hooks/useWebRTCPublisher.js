@@ -167,7 +167,8 @@ export function useWebRTCPublisher() {
         onLive,
         onRecordingReady,
       } = params || {};
-      const wsUrl = buildWsUrl(serverUrl, streamName);
+      const baseForWs = (serverCandidatesRef.current && serverCandidatesRef.current[serverCandidateIndexRef.current]) || serverUrl;
+      const wsUrl = buildWsUrl(baseForWs, streamName);
       if (!wsUrl) {
         setStatus('error');
         setErrorMessage('Invalid server URL or stream name');

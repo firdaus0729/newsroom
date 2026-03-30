@@ -1,7 +1,6 @@
 import { query } from './db.js';
 
-const RTMP_BASE = process.env.RTMP_BASE_URL || 'rtmp://localhost/live';
-const SRT_BASE = process.env.SRT_BASE_URL || '';
+const SRT_BASE = process.env.SRT_BASE_URL || 'srt://localhost:9999/live';
 const OME_WS_BASE = process.env.OME_WS_BASE_URL || 'ws://localhost:3333';
 
 export async function getReporters() {
@@ -35,8 +34,7 @@ export async function getLiveReporters() {
     stream_name: r.stream_name,
     started_at: r.started_at,
     status: 'live',
-    rtmp_url: `${RTMP_BASE}/${r.stream_name}_rtmp`,
-    srt_url: SRT_BASE ? `${SRT_BASE}/${r.stream_name}_rtmp` : null,
+    srt_url: `${SRT_BASE}/${r.stream_name}_srt`,
     webrtc_url: `${OME_WS_BASE}/live/${r.stream_name}`,
   }));
 }
@@ -57,8 +55,7 @@ export async function getStreams() {
     started_at: s.started_at,
     ended_at: s.ended_at,
     is_live: !s.ended_at,
-    rtmp_url: !s.ended_at ? `${RTMP_BASE}/${s.stream_name}_rtmp` : null,
-    srt_url: !s.ended_at && SRT_BASE ? `${SRT_BASE}/${s.stream_name}_rtmp` : null,
+    srt_url: !s.ended_at ? `${SRT_BASE}/${s.stream_name}_srt` : null,
     webrtc_url: !s.ended_at ? `${OME_WS_BASE}/live/${s.stream_name}` : null,
   }));
 }

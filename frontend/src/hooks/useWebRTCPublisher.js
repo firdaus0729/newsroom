@@ -2,9 +2,9 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-// OME default application name is 'app' in the stock Server.xml
+// OME application name matching Server.xml <Name>live</Name>
 console.log('WebRTC Publisher initialized');
-const APP = 'app';
+const APP = 'live';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
 const STATS_INTERVAL_MS = 2000;

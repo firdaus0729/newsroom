@@ -21,6 +21,7 @@ export default function Layout() {
           <NavLink to="uploads" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Uploaded Clips</NavLink>
           <NavLink to="alerts" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Alerts</NavLink>
           <NavLink to="stories" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Stories</NavLink>
+          <NavLink to="queue-health" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Queue Health</NavLink>
         </nav>
         <button type="button" className="btn-logout" onClick={handleLogout}>Log out</button>
       </aside>

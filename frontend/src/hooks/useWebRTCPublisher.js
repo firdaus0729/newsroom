@@ -17,6 +17,33 @@ function buildWsUrl(serverUrl, streamName) {
   return `${base}/${APP}/${encodeURIComponent(streamName)}?direction=send`;
 }
 
+function buildServerCandidates(serverUrl) {
+  const candidates = [];
+  const add = (v) => {
+    if (!v) return;
+    const s = String(v).trim();
+    if (!s) return;
+    if (!candidates.includes(s)) candidates.push(s);
+  };
+
+  add(serverUrl);
+
+  try {
+    const u = new URL(serverUrl);
+    // If we were using the nginx proxy path /ome-ws, fall back to direct OME TLS signalling.
+    if (u.pathname.includes('/ome-ws')) {
+      // OME TLS signalling is mapped to 3334 in docker-compose.
+      if (u.protocol === 'https:') add(`https://${u.hostname}:3334`);
+      // Also try plain websocket port in case you're on HTTP.
+      if (u.protocol === 'http:') add(`http://${u.hostname}:3333`);
+    }
+  } catch {
+    // ignore parse errors, keep original candidate only
+  }
+
+  return candidates;
+}
+
 function applyBitrateToSender(sender, bitrateKey) {
   const preset = BITRATE_PRESETS[bitrateKey] || BITRATE_PRESETS.medium;
   const maxBitrate = preset.value;
@@ -48,6 +75,8 @@ export function useWebRTCPublisher() {
   const statsIntervalRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const lastConnectParamsRef = useRef(null);
+  const serverCandidatesRef = useRef([]);
+  const serverCandidateIndexRef = useRef(0);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
@@ -187,6 +216,19 @@ if (e.candidate) {
         }
         const delay = RECONNECT_BASE_MS * Math.pow(2, reconnectAttemptRef.current);
         reconnectAttemptRef.current += 1;
+
+        // Try next signalling base URL if we have multiple candidates.
+        if (serverCandidatesRef.current.length > 1) {
+          serverCandidateIndexRef.current = Math.min(
+            serverCandidateIndexRef.current + 1,
+            serverCandidatesRef.current.length - 1
+          );
+          const nextBase = serverCandidatesRef.current[serverCandidateIndexRef.current];
+          if (lastConnectParamsRef.current && nextBase) {
+            lastConnectParamsRef.current.serverUrl = nextBase;
+          }
+        }
+
         setStatus('reconnecting');
         setErrorMessage('Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + reconnectAttemptRef.current + ')');
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -355,6 +397,8 @@ if (e.candidate) {
         onLive,
         onRecordingReady,
       };
+      serverCandidatesRef.current = buildServerCandidates(serverUrl);
+      serverCandidateIndexRef.current = 0;
       setStatus('connecting');
       setErrorMessage('');
       reconnectAttemptRef.current = 0;

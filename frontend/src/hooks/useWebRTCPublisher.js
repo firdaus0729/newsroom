@@ -3,6 +3,7 @@ import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
 // OME default application name is 'app' in the stock Server.xml
+console.log('WebRTC Publisher initialized');
 const APP = 'app';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
@@ -39,9 +40,12 @@ function buildServerCandidates(serverUrl) {
     // This matches OME's <TLSPort>${env:OME_WEBRTC_SIGNALLING_TLS_PORT:3334}</TLSPort>.
     add(`https://${host}:3334`);
 
-    // Also try direct plain WS (3333). Even if the page is HTTPS,
-    // the signalling port 3333 is typically plain ws:// in the container.
-    add(`http://${host}:3333`);
+    // Also try direct plain WS (3333) only for non-HTTPS pages.
+    // Browsers block mixed content (ws://) on HTTPS pages, so avoid adding
+    // the plain http/ws candidate when the current page is secure.
+    if (!isHttpsPage) {
+      add(`http://${host}:3333`);
+    }
 
     // If we are using /ome-ws proxy (or the site is HTTPS), include the proxy path too.
     if (hasOmeProxyPath || isHttpsPage) {

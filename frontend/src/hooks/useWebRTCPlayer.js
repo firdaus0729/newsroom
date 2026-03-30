@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 
 // OME application name (must match useWebRTCPublisher and OME config)
-const APP = 'live';
+const APP = 'app';
 const RECONNECT_BASE_MS = 1000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 

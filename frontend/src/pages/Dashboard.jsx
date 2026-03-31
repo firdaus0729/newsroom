@@ -146,7 +146,7 @@ export default function Dashboard() {
   };
 
   const handleCopySrt = () => {
-    const srtUrl = `${SRT_BASE_URL.replace(/\/+$/, '')}/${streamName}_srt`;
+    const srtUrl = `${SRT_BASE_URL.replace(/\/++$/, '')}/${streamName}`;
     navigator.clipboard.writeText(srtUrl).then(() => {
       setAlertStatus({ type: 'success', text: 'SRT URL copied for external ingest.' });
     }).catch(() => {});

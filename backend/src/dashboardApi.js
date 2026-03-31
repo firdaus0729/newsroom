@@ -34,7 +34,7 @@ export async function getLiveReporters() {
     stream_name: r.stream_name,
     started_at: r.started_at,
     status: 'live',
-    srt_url: `${SRT_BASE}/${r.stream_name}`,
+    srt_url: `${SRT_BASE}/${r.stream_name}_srt`,
     webrtc_url: `${OME_WS_BASE}/live/${r.stream_name}`,
   }));
 }
@@ -55,7 +55,7 @@ export async function getStreams() {
     started_at: s.started_at,
     ended_at: s.ended_at,
     is_live: !s.ended_at,
-    srt_url: !s.ended_at ? `${SRT_BASE}/${s.stream_name}` : null,
+    srt_url: !s.ended_at ? `${SRT_BASE}/${s.stream_name}_srt` : null,
     webrtc_url: !s.ended_at ? `${OME_WS_BASE}/live/${s.stream_name}` : null,
   }));
 }

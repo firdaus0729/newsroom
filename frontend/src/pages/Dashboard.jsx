@@ -257,6 +257,17 @@ export default function Dashboard() {
               >
                 <span className="btn-icon-label">{isMuted ? 'Unmute' : 'Mute'}</span>
               </button>
+              {(pubStatus === 'live' || pubStatus === 'reconnecting') && (
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={handleCopySrt}
+                  title="Copy SRT URL"
+                  aria-label="Copy SRT URL"
+                >
+                  <span className="btn-icon-label">Copy SRT URL</span>
+                </button>
+              )}
             </div>
           </div>
 

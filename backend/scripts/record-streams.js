@@ -48,7 +48,7 @@ async function getLiveStreams(token) {
 
 function startRecording(streamName, reporterId) {
   if (activeProcesses.has(streamName)) return;
-  const srtUrl = `${SRT_BASE}/${streamName}_srt`;
+  const srtUrl = `${SRT_BASE}/${streamName}`;
   const outDir = path.join(RECORDINGS_DIR, String(reporterId));
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   const outputPath = path.join(outDir, `${streamName}_${Date.now()}.mp4`);

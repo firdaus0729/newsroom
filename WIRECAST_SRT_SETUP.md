@@ -12,7 +12,7 @@ To ingest individual reporter streams into Wirecast:
 2. Configure each reporter input:
    - **Remote Address**: `www.newznow.org` (or your server IP)
    - **Port**: `9999`
-   - **Stream ID**: `live/reporter_1_srt` (change `1` for each reporter)
+   - **Stream ID**: `www.newznow.org/live/reporter_1_srt` (include hostname; change `1` for each reporter)
    - **Protocol**: SRT caller
 
 ### 2. Wirecast Program Output Configuration (Studio Feed)
@@ -22,13 +22,15 @@ To publish the studio program output back to OME (for reporters to see return fe
 2. Configure:
    - **Remote Address**: `www.newznow.org` (or your server IP/hostname)
    - **Port**: `9999`
-   - **Stream ID**: `live/program_srt`
+   - **Stream ID**: `www.newznow.org/live/program` (include hostname)
    - **Protocol**: SRT caller
 
 ## SRT Stream Naming Convention
-- **Reporter streams**: `live/reporter_N_srt` (ingest into Wirecast)
-  - Example: `live/reporter_1_srt`, `live/reporter_2_srt`, etc.
-- **Program stream**: `live/program_srt` (studio output from Wirecast)
+OME requires Stream IDs in format: `{hostname}/{app}/{stream}[/{playlist}]`
+
+- **Reporter streams**: `www.newznow.org/live/reporter_N_srt` (ingest into Wirecast)
+  - Example: `www.newznow.org/live/reporter_1_srt`, `www.newznow.org/live/reporter_2_srt`, etc.
+- **Program stream**: `www.newznow.org/live/program` (studio output from Wirecast)
 
 ## Troubleshooting
 
@@ -94,7 +96,7 @@ VITE_SRT_BASE_URL=srt://www.newznow.org:9999/live
 - Expected: Reporter feed visible in Wirecast
 
 ### Step 3: Wirecast program output check
-- Wirecast publishes program output to `live/program_srt`
+- Wirecast publishes program output to `live/program`
 - Check `http://SERVER_IP:8080/stat` for active streams
 
 ### Step 4: OME received confirm
@@ -113,6 +115,6 @@ docker compose logs -f ovenmediaengine
 
 ## Notes
 - SRT runs on port **9999** (both TCP and UDP)
-- Stream IDs must follow format: `<app>/<stream>` (e.g., `live/program_srt`)
+- Stream IDs must follow format: `<app>/<stream>` (e.g., `live/reporter_1_srt` for reporters, `live/program` for the studio return feed)
 - All RTMP references have been removed; use SRT instead
 - Return feed now auto-loads the `program` stream (no manual URL entry)

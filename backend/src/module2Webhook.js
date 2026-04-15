@@ -32,7 +32,13 @@ function postWithTimeout(url, headers, body, timeoutMs = 10000) {
     headers,
     body,
     signal: controller.signal,
-  }).finally(() => clearTimeout(timeout));
+  })
+    .then(async (res) => {
+      if (res.ok) return;
+      const responseText = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status} ${res.statusText}${responseText ? `: ${responseText}` : ''}`);
+    })
+    .finally(() => clearTimeout(timeout));
 }
 
 function postWebhook(endpointPath, payload) {

@@ -1,10 +1,10 @@
-# Streaming Architecture (OME + Coturn + Recording & Monitoring)
+# Streaming Architecture (OME + Coturn + SRT + Recording & Monitoring)
 
 ## Overview
 
-- **OvenMediaEngine (OME)**: WebRTC ingest from reporters, transcoding, RTMP push, optional recording, REST API for stats.
+- **OvenMediaEngine (OME)**: WebRTC ingest from reporters, SRT studio ingest/output, optional recording, REST API for stats.
 - **Coturn**: STUN/TURN server for NAT traversal so mobile reporters can connect from cellular/Wi‑Fi behind NAT/firewalls.
-- **nginx-rtmp**: RTMP app for vMix/OBS (studio).
+- **restream-forwarder (optional)**: Pulls SRT program stream and pushes RTMP to Restream.
 - **Web**: Static publisher/player and Reporter Portal assets.
 
 ## 1. STUN/TURN (Coturn)
@@ -109,12 +109,11 @@ curl -u "ome-admin:changeme" -X POST "http://localhost:9999/v1/vhosts/*/apps/liv
 | Port        | Protocol | Service     | Purpose                    |
 |------------|----------|-------------|----------------------------|
 | 80, 443    | TCP      | web         | HTTP/HTTPS                 |
-| 1935       | TCP      | nginx-rtmp  | RTMP                       |
 | 3333, 3334 | TCP      | OME         | WebRTC signalling          |
 | 3478       | UDP/TCP  | Coturn      | STUN/TURN                  |
 | 3479       | TCP      | OME         | OME embedded TURN          |
 | 49152–49251| UDP      | Coturn      | TURN relay                 |
-| 9999       | TCP      | OME         | REST API (stats, recording)|
+| 9999       | UDP/TCP  | OME         | SRT + REST API             |
 | 10000–10019| UDP      | OME         | WebRTC ICE (20 publishers) |
 
 ---
@@ -122,8 +121,8 @@ curl -u "ome-admin:changeme" -X POST "http://localhost:9999/v1/vhosts/*/apps/liv
 ## 5. Docker Compose Layout
 
 - **coturn**: STUN/TURN (3478, 49152–49251).
-- **ovenmediaengine**: Ingest, transcoding, push, recording, API (3333, 3334, 3479, 9999, 10000–10019).
-- **rtmp**: nginx-rtmp (1935).
+- **ovenmediaengine**: Ingest, transcoding, recording, API (3333, 3334, 3479, 9999, 10000–10019).
+- **restream-forwarder** (optional): SRT input -> RTMP output.
 - **web**: Static + Reporter Portal (80, 443).
 - **nginx-proxy** (optional): Reverse proxy in front of web + OME (example in `nginx-proxy/`).
 

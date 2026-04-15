@@ -2,9 +2,9 @@
 
 ## Overview
 
-- **OvenMediaEngine (OME)**: WebRTC ingest from reporters, SRT studio ingest/output, optional recording, REST API for stats.
+- **OvenMediaEngine (OME)**: WebRTC ingest from reporters, SRT provider output, optional recording, REST API for stats.
 - **Coturn**: STUN/TURN server for NAT traversal so mobile reporters can connect from cellular/Wi‑Fi behind NAT/firewalls.
-- **restream-forwarder (optional)**: Pulls SRT program stream and pushes RTMP to Restream.
+- **SRT clients (Wirecast/OBS)**: Pull reporter streams from OME SRT provider.
 - **Web**: Static publisher/player and Reporter Portal assets.
 
 ## 1. STUN/TURN (Coturn)
@@ -121,8 +121,8 @@ curl -u "ome-admin:changeme" -X POST "http://localhost:9999/v1/vhosts/*/apps/liv
 ## 5. Docker Compose Layout
 
 - **coturn**: STUN/TURN (3478, 49152–49251).
-- **ovenmediaengine**: Ingest, transcoding, recording, API (3333, 3334, 3479, 9999, 10000–10019).
-- **restream-forwarder** (optional): SRT input -> RTMP output.
+- **ovenmediaengine**: Ingest, transcoding, push, recording, API (3333, 3334, 3479, 9999, 10000–10019).
+- **SRT**: OME SRT provider on 9999.
 - **web**: Static + Reporter Portal (80, 443).
 - **nginx-proxy** (optional): Reverse proxy in front of web + OME (example in `nginx-proxy/`).
 

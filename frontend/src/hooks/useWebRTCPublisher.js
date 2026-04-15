@@ -2,7 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { getIceServers } from '../config/iceServers';
 import { BITRATE_PRESETS } from '../constants/bitrate';
 
-// OME applications name (must match OME config). We use "live" for RTMP ingest (/live/<stream>)
+// OME application name matching Server.xml <Name>live</Name>
+console.log('WebRTC Publisher initialized');
 const APP = 'live';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_MS = 1000;
@@ -17,6 +18,46 @@ function buildWsUrl(serverUrl, streamName) {
   else if (!base.startsWith('ws://') && !base.startsWith('wss://')) base = `ws://${base}`;
   base = base.replace(/\/+$/, '');
   return `${base}/${APP}/${encodeURIComponent(streamName)}?direction=send`;
+}
+
+function buildServerCandidates(serverUrl) {
+  const candidates = [];
+
+  const add = (v) => {
+    if (!v) return;
+    const s = String(v).trim();
+    if (!s) return;
+    if (!candidates.includes(s)) candidates.push(s);
+  };
+
+  add(serverUrl);
+
+  try {
+    const u = new URL(serverUrl);
+    const host = u.hostname;
+    const hasOmeProxyPath = u.pathname?.includes('/ome-ws');
+    const isHttpsPage = u.protocol === 'https:';
+
+    // Always try the direct OME TLS signalling port (3334).
+    // This matches OME's <TLSPort>${env:OME_WEBRTC_SIGNALLING_TLS_PORT:3334}</TLSPort>.
+    add(`https://${host}:3334`);
+
+    // Also try direct plain WS (3333) only for non-HTTPS pages.
+    // Browsers block mixed content (ws://) on HTTPS pages, so avoid adding
+    // the plain http/ws candidate when the current page is secure.
+    if (!isHttpsPage) {
+      add(`http://${host}:3333`);
+    }
+
+    // If we are using /ome-ws proxy (or the site is HTTPS), include the proxy path too.
+    if (hasOmeProxyPath || isHttpsPage) {
+      add(`https://${host}/ome-ws`);
+    }
+  } catch {
+    // ignore parse errors, keep original candidate only
+  }
+
+  return candidates;
 }
 
 function applyBitrateToSender(sender, bitrateKey) {
@@ -50,6 +91,8 @@ export function useWebRTCPublisher() {
   const statsIntervalRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const lastConnectParamsRef = useRef(null);
+  const serverCandidatesRef = useRef([]);
+  const serverCandidateIndexRef = useRef(0);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
@@ -130,7 +173,8 @@ export function useWebRTCPublisher() {
         onLive,
         onRecordingReady,
       } = params || {};
-      const wsUrl = buildWsUrl(serverUrl, streamName);
+      const baseForWs = (serverCandidatesRef.current && serverCandidatesRef.current[serverCandidateIndexRef.current]) || serverUrl;
+      const wsUrl = buildWsUrl(baseForWs, streamName);
       if (!wsUrl) {
         setStatus('error');
         setErrorMessage('Invalid server URL or stream name');
@@ -181,9 +225,6 @@ if (e.candidate) {
       };
 
       const scheduleReconnect = () => {
-        // Prevent multiple reconnect timers being scheduled concurrently.
-        // Both `pc.onconnectionstatechange` and `ws.onclose` can trigger reconnect.
-        if (reconnectTimeoutRef.current) return;
         if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
           setStatus('error');
           setErrorMessage('Reconnection failed after ' + MAX_RECONNECT_ATTEMPTS + ' attempts');
@@ -192,10 +233,22 @@ if (e.candidate) {
         }
         const delay = RECONNECT_BASE_MS * Math.pow(2, reconnectAttemptRef.current);
         reconnectAttemptRef.current += 1;
+
+        // Try next signalling base URL if we have multiple candidates.
+        if (serverCandidatesRef.current.length > 1) {
+          serverCandidateIndexRef.current = Math.min(
+            serverCandidateIndexRef.current + 1,
+            serverCandidatesRef.current.length - 1
+          );
+          const nextBase = serverCandidatesRef.current[serverCandidateIndexRef.current];
+          if (lastConnectParamsRef.current && nextBase) {
+            lastConnectParamsRef.current.serverUrl = nextBase;
+          }
+        }
+
         setStatus('reconnecting');
         setErrorMessage('Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + reconnectAttemptRef.current + ')');
         reconnectTimeoutRef.current = setTimeout(() => {
-          reconnectTimeoutRef.current = null; // timer consumed
           if (wsRef.current) try { wsRef.current.close(); } catch (_) {}
           if (pcRef.current) try { pcRef.current.close(); } catch (_) {}
           wsRef.current = null;
@@ -361,6 +414,8 @@ if (e.candidate) {
         onLive,
         onRecordingReady,
       };
+      serverCandidatesRef.current = buildServerCandidates(serverUrl);
+      serverCandidateIndexRef.current = 0;
       setStatus('connecting');
       setErrorMessage('');
       reconnectAttemptRef.current = 0;

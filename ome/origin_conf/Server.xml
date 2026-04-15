@@ -54,10 +54,6 @@
 				<WorkerCount>1</WorkerCount>
 			</OVT>
 			<!-- Push providers -->
-			<RTMP>
-				<Port>${env:OME_RTMP_PROV_PORT:1935}</Port>
-				<WorkerCount>1</WorkerCount>
-			</RTMP>
 			<SRT>
 				<Port>${env:OME_SRT_PROV_PORT:9999}</Port>
 				<WorkerCount>1</WorkerCount>
@@ -160,7 +156,7 @@
 				<SecretKey>aKq#1kj</SecretKey>
 
 				<Enables>
-					<Providers>rtmp,webrtc,srt</Providers>
+					<Providers>webrtc,srt</Providers>
 					<Publishers>webrtc,llhls</Publishers>
 				</Enables>
 			</SignedPolicy>
@@ -318,7 +314,6 @@
 								<Url>*</Url>
 							</CrossDomains>
 						</WebRTC>
-						<RTMP />
 						<SRT />
 						<RTSPPull />
 						<Schedule>

@@ -1,6 +1,6 @@
 # Newsroom Live Streaming – Deployment Guide
 
-Low-latency WebRTC ingest from smartphones with SRT studio workflow. Up to 20 concurrent reporters, <2s latency target.
+Low-latency WebRTC ingest from smartphones, SRT output for Wirecast/OBS. Up to 20 concurrent reporters, &lt;2s latency target.
 
 ---
 
@@ -10,15 +10,12 @@ Low-latency WebRTC ingest from smartphones with SRT studio workflow. Up to 20 co
 Reporter (Android/browser) --WebRTC--> OvenMediaEngine
          |                            (STUN: Coturn)
          +-- STUN/TURN (Coturn:3478) --+
-
-Wirecast / vMix / OBS (Studio) <--SRT pull-- OvenMediaEngine (program stream)
-                                                      |
-                                                      +--> Optional Restream forwarder (RTMP output)
+                                        \
+                                         +--> Wirecast / OBS Studio via SRT pull
 ```
 
 - **Coturn**: STUN/TURN for NAT traversal so mobile reporters can connect from cellular/Wi‑Fi.
-- **OvenMediaEngine**: WebRTC ingest (reporters), SRT ingest/output for studio program, optional recording; REST API for stats.
-- **Restream forwarder (optional)**: Pulls SRT `live/program` and pushes RTMP to Restream.
+- **OvenMediaEngine**: WebRTC ingest (reporters), provides SRT endpoints for studio clients, optional recording; REST API for stats.
 - **Web server**: Serves the publisher and player pages.
 
 See **[STREAMING_ARCHITECTURE.md](STREAMING_ARCHITECTURE.md)** for STUN/TURN, recording, and monitoring.
@@ -65,12 +62,11 @@ sudo ufw enable
 The included `docker-compose.yml` already sets:
 
 - **OvenMediaEngine**: up to 14 CPUs, 28 GB RAM (reservation 4 CPU, 4 GB).
-- **restream-forwarder** (optional): lightweight copy container, no transcode by default.
 - **Web**: default nginx limits.
 
 Tuning for 20 concurrent streams:
 
-- **OME** `ome/conf/Server.xml`: decoder `ThreadCount` 8; WebRTC signalling `WorkerCount` 4; ICE ports 10000–10019 (20 UDP); SRT providers/publishers enabled.
+- **OME** `ome/conf/Server.xml`: decoder `ThreadCount` 8; WebRTC signalling `WorkerCount` 4; ICE ports 10000–10019 (20 UDP); SRT provider enabled on port 9999.
 - **Coturn**: `coturn/turnserver.conf`; set `TURN_EXTERNAL_IP` to your server’s public IP in production so reporters can use TURN.
 - **Recording**: OME FILE publisher enabled; start/stop via REST API on port 9999 (see STREAMING_ARCHITECTURE.md).
 - **Monitoring**: OME stats via `GET /v1/stats/current/...` (port 9999, Basic auth); optional script `scripts/monitor-streaming.sh`.
@@ -83,7 +79,7 @@ Tuning for 20 concurrent streams:
 
 ```bash
 cd /opt   # or your preferred path
-# Copy the project files (docker-compose.yml, ome/, coturn/, web/)
+# Copy the project files (docker-compose.yml, ome/, web/)
 ```
 
 ### 4.2 Set the server’s public IP (production)
@@ -114,7 +110,6 @@ docker compose up -d
 ```bash
 docker compose ps
 docker compose logs -f ovenmediaengine   # check OME startup
-docker compose logs -f restream-forwarder # optional restream output
 ```
 
 If OME fails to start, check `ome/logs/ovenmediaengine.log` and that `ome/conf/Server.xml` is valid (e.g. no missing XML or wrong paths).
@@ -129,7 +124,7 @@ If OME fails to start, check `ome/logs/ovenmediaengine.log` and that `ome/conf/S
 2. Set **Server URL** to `ws://YOUR_SERVER_IP:3333` (or `wss://...` if you use TLS).
 3. Set **Stream name** (e.g. `reporter_1`).
 4. Choose camera and microphone, then click **GO LIVE**.
-5. When it shows “LIVE”, the stream is being sent to OME.
+5. When it shows “LIVE”, the stream is being sent to OME and available through SRT.
 
 ### 5.2 WebRTC player (low-latency test)
 
@@ -138,37 +133,40 @@ If OME fails to start, check `ome/logs/ovenmediaengine.log` and that `ome/conf/S
 3. **Stream name**: same as used in the publisher (e.g. `reporter_1`).
 4. Click **Play**. You should see the stream with low latency.
 
-### 5.3 SRT studio test – see section 6
+### 5.3 SRT (Wirecast/OBS) – see section 6
 
 ---
 
-## 6. Connecting Wirecast / vMix / OBS via SRT
+## 6. Connecting vMix or OBS Studio
 
-Studio tools should pull the program stream from OME via SRT.
+Wirecast and OBS **pull** the stream from your server’s SRT endpoint.
 
 ### 6.1 SRT URL format
 
-- **Program pull URL**:
+- **SRT URL**: `srt://YOUR_SERVER_IP:9999/live/reporter_1_srt` (or with your domain).
+
+Example SRT URL:
 
 ```text
-srt://YOUR_SERVER_IP:9999?streamid=live/program
+srt://YOUR_SERVER_IP:9999/live/reporter_1_srt
 ```
 
 ### 6.2 vMix
 
-1. **Add Input** → **Stream** / **SRT** (name varies by version).
-2. **URL**: `srt://YOUR_SERVER_IP:9999?streamid=live/program`
+1. **Add Input** → **Stream** (or **SRT** / **Network Source** depending on version).
+2. **URL**: `srt://YOUR_SERVER_IP:9999/live/reporter_1_srt`.
 3. Add the input and put it on the program bus.
 
 ### 6.3 OBS Studio
 
-1. Add a network/SRT source (or plugin input supporting SRT URL).
-2. Set URL to `srt://YOUR_SERVER_IP:9999?streamid=live/program`.
+1. **Sources** → **Add** → **Media Source** or any SRT-capable input source.
+2. If your version has “Network” or “Stream” source: set URL to `srt://YOUR_SERVER_IP:9999/live/reporter_1_srt`.
+3. Use low-latency options if available.
 
 ### 6.4 Latency
 
 - WebRTC (publisher → OME → player): typically under 2 seconds.
-- SRT (studio pull): typically low-latency and resilient on unstable networks.
+- SRT (OME → Wirecast/OBS): typically low latency; use “low latency” options in your studio client if available.
 
 ---
 
@@ -204,9 +202,9 @@ location /ome-ws/ {
 | Path | Purpose |
 |------|--------|
 | `nginx-ome-ws.conf` | Nginx location to proxy `/ome-ws/` to OME (port 3333) for WSS in production |
-| `docker-compose.yml` | OME, Coturn, optional restream forwarder |
+| `docker-compose.yml` | OME, Coturn, web server |
 | `ome/conf/Server.xml` | OvenMediaEngine: WebRTC bind, app “live”, output profiles, push |
-| `ome/conf/StreamMap.xml` | Stream mapping and output rules |
+| `ome/conf/StreamMap.xml` | Stream mapping and output profile settings |
 | `ome/conf/Logger.xml` | OME logging |
 | `web/publisher.html` | Reporter WebRTC publisher UI |
 | `web/player.html` | WebRTC test player |
@@ -217,5 +215,5 @@ location /ome-ws/ {
 ## 9. Troubleshooting
 
 - **Publisher “Connecting…” then fails**: If using HTTPS, add the `/ome-ws/` Nginx proxy (section 7). Otherwise check that port 3333 (and 3478, 10000–10019 UDP) is open and `OME_HOST_IP` is set to the server’s public IP. Check browser console and `ome/logs/ovenmediaengine.log`.
-- **No picture in studio tool**: Confirm program stream exists and SRT URL is exactly `srt://YOUR_SERVER_IP:9999?streamid=live/program`.
-- **High CPU**: Reduce OME output profile bitrate/resolution or lower concurrent streams until hardware is scaled.
+- **No picture in Wirecast/OBS**: Confirm the reporter is LIVE and use the matching SRT URL (e.g. `srt://YOUR_SERVER_IP:9999/live/reporter_1_srt`).
+- **High CPU**: Reduce resolution/bitrate in `Server.xml` output profiles or lower the number of concurrent streams until you scale hardware.

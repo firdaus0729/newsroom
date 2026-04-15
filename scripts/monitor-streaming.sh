@@ -50,9 +50,9 @@ if command -v docker &>/dev/null; then
 fi
 
 # --- Bandwidth (optional: requires ifconfig or ip) ---
-echo "--- Ports in use (3333=OME, 3478=Coturn, 1935=RTMP) ---"
+echo "--- Ports in use (3333=OME, 3478=Coturn, 9999=SRT/API) ---"
 if command -v ss &>/dev/null; then
-  ss -tuln | grep -E ':(3333|3334|3478|3479|1935|9999)\s' || true
+  ss -tuln | grep -E ':(3333|3334|3478|3479|9999|10000)\s' || true
 elif command -v netstat &>/dev/null; then
-  netstat -tuln | grep -E ':(3333|3334|3478|3479|1935|9999)\s' || true
+  netstat -tuln | grep -E ':(3333|3334|3478|3479|9999|10000)\s' || true
 fi

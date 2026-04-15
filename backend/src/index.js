@@ -11,14 +11,20 @@ import * as dashboardApi from './dashboardApi.js';
 import { ensureDatabaseAndSchema } from './ensureDb.js';
 import { getUploadFilePath, ensureUploadsDir, UPLOADS_DIR, createUpload, validateUploadFile } from './uploads.js';
 import { isObjectStorageEnabled, getObjectStream } from './objectStorage.js';
-import { notifyModule2UploadComplete } from './module2Webhook.js';
+import {
+  startAutomationWorker,
+  listStories,
+  getStoryDetails,
+  retryStoryJob,
+  reviewClip,
+  getQueueHealth,
+} from './module2.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-app.use('/uploads', express.static(UPLOADS_DIR));
 
 const reporterUpload = multer({
   storage: multer.diskStorage({
@@ -164,12 +170,6 @@ app.post('/upload', authMiddleware, rateLimit({ windowMs: 60_000, max: 30 }), (r
       size: req.file.size,
       mimetype: req.file.mimetype,
     });
-    notifyModule2UploadComplete({
-      req,
-      reporterId: req.user.id,
-      upload,
-      sourceType: 'upload',
-    });
     return res.status(201).json(upload);
   } catch (e) {
     try { fs.unlinkSync(req.file.path); } catch (_) {}
@@ -237,7 +237,7 @@ app.get('/dashboard/reporters', editorOrAdminMiddleware, async (_, res) => {
       status: liveIds.has(r.id) ? 'live' : (r.status === 'live' ? 'live' : 'offline'),
       stream_name: live.find((l) => l.id === r.id)?.stream_name,
       started_at: live.find((l) => l.id === r.id)?.started_at,
-      rtmp_url: live.find((l) => l.id === r.id)?.rtmp_url,
+      srt_url: live.find((l) => l.id === r.id)?.srt_url,
       webrtc_url: live.find((l) => l.id === r.id)?.webrtc_url,
     }));
     return res.json(withStatus);
@@ -317,6 +317,98 @@ app.get('/dashboard/activity', editorOrAdminMiddleware, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
     const activity = await dashboardApi.getActivityFeed(limit);
     return res.json(activity);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ----- Module 2: story-centric automation API -----
+app.get('/api/stories', editorOrAdminMiddleware, async (req, res) => {
+  try {
+    const stories = await listStories({
+      status: req.query.status || undefined,
+      reporter_id: req.query.reporter_id || undefined,
+      limit: req.query.limit || 50,
+      offset: req.query.offset || 0,
+    });
+    return res.json(stories);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/stories/:id', editorOrAdminMiddleware, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid story id' });
+    const details = await getStoryDetails(id);
+    if (!details) return res.status(404).json({ error: 'Story not found' });
+    return res.json(details);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/stories/:id/retry-job', editorOrAdminMiddleware, async (req, res) => {
+  if (req.role !== 'admin') {
+    return res.status(403).json({ error: 'Only admin can retry jobs' });
+  }
+  try {
+    const storyId = Number(req.params.id);
+    const jobId = Number(req.body?.job_id);
+    if (!storyId || !jobId) return res.status(400).json({ error: 'story id and job_id are required' });
+    const retried = await retryStoryJob(storyId, jobId);
+    if (!retried) return res.status(404).json({ error: 'Job not found' });
+    return res.json(retried);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/stories/:id/approve-clip', editorOrAdminMiddleware, async (req, res) => {
+  try {
+    const storyId = Number(req.params.id);
+    const clipId = Number(req.body?.clip_id);
+    if (!storyId || !clipId) return res.status(400).json({ error: 'story id and clip_id are required' });
+    const clip = await reviewClip({
+      storyId,
+      clipId,
+      action: 'approve',
+      reviewerRole: req.role || 'editor',
+      reviewerId: String(req.editor?.id || req.admin?.id || ''),
+      note: req.body?.note || '',
+    });
+    if (!clip) return res.status(404).json({ error: 'Clip not found' });
+    return res.json(clip);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/stories/:id/reject-clip', editorOrAdminMiddleware, async (req, res) => {
+  try {
+    const storyId = Number(req.params.id);
+    const clipId = Number(req.body?.clip_id);
+    if (!storyId || !clipId) return res.status(400).json({ error: 'story id and clip_id are required' });
+    const clip = await reviewClip({
+      storyId,
+      clipId,
+      action: 'reject',
+      reviewerRole: req.role || 'editor',
+      reviewerId: String(req.editor?.id || req.admin?.id || ''),
+      note: req.body?.note || '',
+    });
+    if (!clip) return res.status(404).json({ error: 'Clip not found' });
+    return res.json(clip);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/jobs/queue-health', adminAuthMiddleware, async (_req, res) => {
+  try {
+    const health = await getQueueHealth();
+    return res.json(health);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -443,13 +535,6 @@ app.post('/admin/register-recording', adminAuthMiddleware, (req, res, next) => {
       size: req.file.size,
       mimetype: req.file.mimetype || 'video/mp4',
     });
-    notifyModule2UploadComplete({
-      req,
-      reporterId,
-      upload,
-      sourceType: 'live_completion',
-      liveDurationSeconds: req.body?.live_duration_seconds,
-    });
     return res.status(201).json(upload);
   } catch (e) {
     try { fs.unlinkSync(req.file.path); } catch (_) {}
@@ -479,6 +564,7 @@ async function start() {
     process.exit(1);
   }
   ensureUploadsDir();
+  startAutomationWorker();
   let port = PORT;
   try {
     await listen(port);

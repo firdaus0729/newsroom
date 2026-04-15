@@ -35,7 +35,7 @@ Open these ports on the cloud server and in any host firewall (e.g. `ufw`).
 | **3478**| UDP/TCP  | **Coturn**     | STUN/TURN (reporters NAT)        |
 | **3479**| TCP      | OvenMediaEngine| OME embedded TURN               |
 | **49152–49251** | UDP | **Coturn** | TURN relay ports          |
-| **9999**| TCP      | OvenMediaEngine| REST API (stats, recording)     |
+| **9999**| UDP/TCP  | OvenMediaEngine| SRT ingest/output + REST API     |
 | **10000–10019** | UDP | OvenMediaEngine| WebRTC ICE (20 streams)    |
 
 ### Example: UFW (Linux)
@@ -49,6 +49,7 @@ sudo ufw allow 3478/tcp
 sudo ufw allow 3478/udp
 sudo ufw allow 3479/tcp
 sudo ufw allow 9999/tcp
+sudo ufw allow 9999/udp
 sudo ufw allow 49152:49251/udp
 sudo ufw allow 10000:10019/udp
 sudo ufw enable

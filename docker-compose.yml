@@ -1,4 +1,4 @@
-# Low-latency newsroom streaming: OvenMediaEngine + Coturn (STUN/TURN) + nginx-rtmp
+# Low-latency newsroom streaming: OvenMediaEngine + Coturn (STUN/TURN) + SRT/RTMP restream forwarder
 # Target: 20 concurrent WebRTC publishers, <2s latency, optional recording & monitoring
 
 services:
@@ -56,33 +56,19 @@ services:
           cpus: "4"
           memory: 4G
 
-  rtmp:
-    image: tiangolo/nginx-rtmp
-    container_name: rtmp
-    restart: unless-stopped
-    volumes:
-      - ./rtmp/nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "1935:1935"
-      - "8080:80"
-    networks:
-      - streamnet
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 1G
-
   # Optional: forward only the PROGRAM output to Restream for distribution.
-  # Set RESTREAM_RTMP_URL to the full destination including stream key, e.g.
-  #   rtmp://live.restream.io/live/<YOUR_STREAM_KEY>
+  # Input is SRT from OME, output is RTMP to Restream.
+  # Set:
+  #   PROGRAM_SRT_INPUT_URL=srt://ome:9999?streamid=live/program
+  #   RESTREAM_RTMP_URL=rtmp://live.restream.io/live/<YOUR_STREAM_KEY>
   restream-forwarder:
     image: jrottenberg/ffmpeg:6.0-alpine
     container_name: restream-forwarder
     restart: unless-stopped
     depends_on:
-      - rtmp
+      - ovenmediaengine
     environment:
+      PROGRAM_SRT_INPUT_URL: "${PROGRAM_SRT_INPUT_URL:-srt://ome:9999?streamid=live/program}"
       RESTREAM_RTMP_URL: "${RESTREAM_RTMP_URL:-}"
     entrypoint: ["sh", "-c"]
     command:
@@ -91,10 +77,14 @@ services:
           echo "RESTREAM_RTMP_URL not set; restream-forwarder disabled.";
           sleep infinity;
         fi
-        echo "Forwarding PROGRAM to Restream: $$RESTREAM_RTMP_URL";
+        if [ -z "$$PROGRAM_SRT_INPUT_URL" ]; then
+          echo "PROGRAM_SRT_INPUT_URL not set; cannot pull program stream.";
+          sleep infinity;
+        fi
+        echo "Forwarding PROGRAM ($$PROGRAM_SRT_INPUT_URL) to Restream: $$RESTREAM_RTMP_URL";
         while true; do
-          ffmpeg -hide_banner -loglevel warning -re \
-            -i rtmp://rtmp:1935/live/program \
+          ffmpeg -hide_banner -loglevel warning \
+            -i "$$PROGRAM_SRT_INPUT_URL" \
             -c copy -f flv "$$RESTREAM_RTMP_URL" || true;
           sleep 2;
         done

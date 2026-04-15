@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { query } from './db.js';
 import { isObjectStorageEnabled, uploadFileFromPath } from './objectStorage.js';
+import { enqueueAutomationEvent } from './module2.js';
 
 export const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
 
@@ -68,6 +69,11 @@ export async function createUpload(reporterId, file) {
     await query(
       `INSERT INTO activity_feed (type, reporter_id, upload_id) VALUES ('uploaded_clip', $1, $2)`,
       [reporterId, upload.id]
+    );
+    await enqueueAutomationEvent(
+      'upload_completed',
+      { upload_id: upload.id, reporter_id: reporterId },
+      `upload_completed:${upload.id}`
     );
   }
   return upload;

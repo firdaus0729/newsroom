@@ -124,7 +124,7 @@ Log in with the seeded reporter, then use **GO LIVE** and the **Studio return fe
   So stream name = `reporter_1`, `reporter_2`, etc. for reporter id 1, 2, …
 
 - **Return feed**: Reporters watch the stream named **program** (or `VITE_RETURN_FEED_STREAM`).  
-  The studio should push program output (e.g. RTMP or another WebRTC source) into OvenMediaEngine as the `program` stream so reporters see it in the “Studio return feed” player.
+  The studio should push program output (e.g. SRT or another WebRTC source) into OvenMediaEngine as the `program` stream so reporters see it in the “Studio return feed” player.
 
 - **Mobile**: Use HTTPS in production so camera/mic and WebRTC work on Android. For local testing on a phone, use the same LAN and either HTTP (if the browser allows) or a tunnel (e.g. ngrok).
 

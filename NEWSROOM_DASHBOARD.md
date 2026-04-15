@@ -36,8 +36,8 @@ When reporters go live or stop, the Reporter Portal calls `POST /streams/start` 
 
 ## Features
 
-- **Reporters**: List all reporters with status (Live / Offline), stream duration, and actions (View Stream, Copy RTMP URL).
-- **Live Streams**: List currently live reporters; preview via WebRTC player; copy RTMP URL for Wirecast.
+- **Reporters**: List all reporters with status (Live / Offline), stream duration, and actions (View Stream, Copy SRT URL).
+- **Live Streams**: List currently live reporters; preview via WebRTC player; copy SRT URL for Wirecast/OBS.
 - **Uploaded Clips**: Filter by reporter and date; download clips. (Uploads are stored in DB + files in `UPLOADS_DIR`; add clips via API or sync from OME recordings.)
 - **Activity Feed**: Recent events (went live, stopped stream, clip uploaded).
 

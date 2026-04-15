@@ -4,7 +4,7 @@
  * appears in Uploaded Clips.
  *
  * Requires: FFmpeg installed, ADMIN_EMAIL and ADMIN_PASSWORD in .env (or pass as env).
- * Usage: API_URL=http://localhost:4000 RTMP_BASE=rtmp://localhost/live node scripts/record-streams.js
+ * Usage: API_URL=http://localhost:4000 SRT_BASE_URL=srt://localhost:9999/live node scripts/record-streams.js
  */
 import 'dotenv/config';
 import { spawn } from 'child_process';
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_BASE = process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:4000';
-const RTMP_BASE = process.env.RTMP_BASE_URL || process.env.RTMP_BASE || 'rtmp://localhost/live';
+const SRT_BASE = process.env.SRT_BASE_URL || 'srt://localhost:9999/live';
 const POLL_MS = 8000;
 const RECORDINGS_DIR = process.env.RECORDINGS_DIR || path.join(__dirname, '..', 'recordings');
 
@@ -48,14 +48,14 @@ async function getLiveStreams(token) {
 
 function startRecording(streamName, reporterId) {
   if (activeProcesses.has(streamName)) return;
-  const rtmpUrl = `${RTMP_BASE}/${streamName}_rtmp`;
+  const srtUrl = `${SRT_BASE}/${streamName}`;
   const outDir = path.join(RECORDINGS_DIR, String(reporterId));
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   const outputPath = path.join(outDir, `${streamName}_${Date.now()}.mp4`);
   const proc = spawn(
     'ffmpeg',
     [
-      '-i', rtmpUrl,
+      '-i', srtUrl,
       '-c', 'copy',
       '-f', 'mp4',
       '-movflags', '+faststart',
@@ -130,7 +130,7 @@ async function poll(token) {
 
 async function main() {
   if (!fs.existsSync(RECORDINGS_DIR)) fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
-  console.log('Record-streams: polling', API_BASE, 'RTMP', RTMP_BASE);
+  console.log('Record-streams: polling', API_BASE, 'SRT', SRT_BASE);
   for (;;) {
     try {
       const token = await getAdminToken();

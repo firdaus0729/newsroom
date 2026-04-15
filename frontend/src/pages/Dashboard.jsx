@@ -24,9 +24,10 @@ function getDefaultOmeUrl() {
   }
   if (typeof window === 'undefined') return 'ws://localhost:3333';
   const { protocol, hostname } = window.location;
-  // When on HTTPS, use same-origin path /ome-ws so Nginx can proxy to OME (no port 3333 exposed)
+  // Prefer direct OME TLS signalling port to avoid depending on Nginx /ome-ws proxy.
+  // Nginx /ome-ws can be used if ports are locked down, but Wirecast/clients may break if proxy is misconfigured.
   if (protocol === 'https:') {
-    return `${protocol}//${hostname}/ome-ws`;
+    return `${protocol}//${hostname}:3334`;
   }
   return `ws://${hostname}:3333`;
 }
@@ -42,7 +43,6 @@ export default function Dashboard() {
   const previewVideoRef = useRef(null);
   const returnFeedVideoRef = useRef(null);
   const [bitrate, setBitrate] = useState(DEFAULT_BITRATE);
-  const [currentReturnFeed, setCurrentReturnFeed] = useState('');
 
   const {
     status: pubStatus,
@@ -142,9 +142,7 @@ export default function Dashboard() {
 
   const handleLoadReturnFeed = () => {
     if (!(playerStatus === 'idle' || playerStatus === 'error')) return;
-    // Studio return feed is always the program output (low-latency WebRTC from OME)
     playReturnFeed(omeUrl, RETURN_FEED_STREAM);
-    setCurrentReturnFeed(RETURN_FEED_STREAM);
   };
 
   const handleCopyRtmp = () => {
@@ -172,7 +170,6 @@ export default function Dashboard() {
     const url = `${base}/${reporterStream}_rtmp`;
     navigator.clipboard.writeText(url).then(() => alert('Your RTMP URL copied')).catch(() => {});
   };
-
 
   async function handleUploadClip(e) {
     e.preventDefault();
@@ -345,7 +342,7 @@ export default function Dashboard() {
         </section>
 
         <section className="return-feed-section">
-          <h2 className="return-feed-title">Studio return feed</h2>
+          <h2 className="return-feed-title">Studio return feed ({RETURN_FEED_STREAM})</h2>
           <div className="return-feed-actions">
             {(playerStatus === 'idle' || playerStatus === 'error') && (
               <button
@@ -358,18 +355,11 @@ export default function Dashboard() {
               </button>
             )}
             {playerStatus === 'playing' && (
-              <button type="button" className="btn btn-stop-return-feed" onClick={() => { stopReturnFeed(); setCurrentReturnFeed(''); }}>
+              <button type="button" className="btn btn-stop-return-feed" onClick={stopReturnFeed}>
                 Stop return feed
               </button>
             )}
           </div>
-          <p className="return-feed-now-playing">
-            {currentReturnFeed ? (
-              <>Now playing: <span className="return-feed-now-playing__name">{currentReturnFeed}</span></>
-            ) : (
-              <>Now playing: <span className="return-feed-now-playing__name">—</span></>
-            )}
-          </p>
           <div className={`return-feed-wrap ${playerStatus === 'playing' ? 'return-feed-wrap--playing' : ''}`}>
             <video
               ref={returnFeedVideoRef}

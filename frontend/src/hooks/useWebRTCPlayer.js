@@ -9,8 +9,10 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 function buildWsUrl(serverUrl, streamName) {
   let base = (serverUrl || '').trim();
   if (!base) return null;
-  base = base.replace(/^http/, 'ws');
-  if (!base.includes('://')) base = 'ws://' + base;
+  // Convert http(s) endpoints into correct ws(s) WebSocket endpoints.
+  if (base.startsWith('https://')) base = base.replace(/^https:/, 'wss:');
+  else if (base.startsWith('http://')) base = base.replace(/^http:/, 'ws:');
+  else if (!base.startsWith('ws://') && !base.startsWith('wss://')) base = `ws://${base}`;
   base = base.replace(/\/+$/, '');
   return `${base}/${APP}/${encodeURIComponent(streamName)}`;
 }
